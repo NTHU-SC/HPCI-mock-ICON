@@ -1,0 +1,35 @@
+# Copyright (c) 2024 The YAC Authors
+#
+# SPDX-License-Identifier: CC-BY-4.0
+
+/**
+ * \page exchanger_config Configuration of yaxt exchanger method
+   \tableofcontents
+
+\section exchanger_config_intro Introduction
+
+All data exchanges between processes during the interpolation are done using
+<a href="https://dkrz-sw.gitlab-pages.dkrz.de/yaxt/">yaxt</a>. It supports
+multiple methods to execute these exchanges. Depending on the system
+configuration different methods may have varying performance characteristics.
+
+Available exchanger names and their specifics can be found in the
+<a href="https://dkrz-sw.gitlab-pages.dkrz.de/yaxt/da/dec/defaults.html">yaxt documentation</a>.
+
+\section exchanger_config_how How to configure yaxt exchanger method?
+
+The yaxt exchanger method can be configured by an environment variable, which
+can be set before the start of the program or during runtime (but before
+\ref phase_enddef) by using, for example, the Standard C library routine
+\c setenv. This sets the default method for all interpolations.
+
+<b>YAC_YAXT_EXCHANGER</b>=\<exchanger_name\>
+
+Alternatively, the exchanger method can be set explicitly for each
+individual coupling, either via the
+\ref yaml_yaxt_exchanger_name "configuration file" or the
+\ref phase_def_couple "user interface" depending on the definition method of
+the couple.
+
+*/
+

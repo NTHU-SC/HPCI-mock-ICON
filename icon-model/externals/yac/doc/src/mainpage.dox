@@ -1,0 +1,45 @@
+# Copyright (c) 2024 The YAC Authors
+#
+# SPDX-License-Identifier: CC-BY-4.0
+
+/** @mainpage A Coupling Library for Earth System Models
+
+\tableofcontents
+
+\image html yak_small.jpg
+
+\section main_getting_started Getting started
+
+- \ref installing_yac "Information on how to install YAC"
+- \ref usage "Guide to user interface"
+
+\section main_general_info General information
+
+- \subpage license
+- \subpage availability
+- \subpage version_info
+- \subpage style_guide
+
+\section main_extended_info Extended information
+
+The functionallity provide by YAC is grouped into
+\subpage yac_libs "three libraries" and a \subpage yac_tools "set of tools".
+
+Depending on your application you may have to link against one or more of
+these libraries.
+
+\section main_yac_author YAC Authors
+
+Moritz Hanke, Nils-Arne Dreier, Benjamin Rodenberg, and Ren&eacute; Redler
+
+\section main_references References
+
+Moritz Hanke, Ren&eacute; Redler, Teresa Holfeld und Maxim Yastremsky, 2016: YAC 1.2.0: new aspects for coupling software in Earth system modelling. Geoscientific Model Development, 9, 2755-2769. <a href="https://doi.org/10.5194/gmd-9-2755-2016">DOI:10.5194/gmd-9-2755-201</a>.
+
+Moritz Hanke und Ren&eacute; Redler, 2019: New features with YAC 1.5.0. Reports on ICON, No 3. DOI: <a href="https://doi.org/10.5676/DWD_pub/nwv/icon_003">10.5676/DWD_pub/nwv/icon_003</a>.
+
+\section main_copyright Copyright
+
+Copyright 2018 by DKRZ and MPI-M.
+
+*/

@@ -1,0 +1,70 @@
+# Copyright (c) 2025 The YAC Authors
+#
+# SPDX-License-Identifier: CC-BY-4.0
+
+/**
+ * \page record_replay_page Recording and Replaying Coupling Data
+
+\author Nils-Arne Dreier (DKRZ)
+
+This page explains how to use the record and replay tools to capture and later replay coupling data, for example, in a continuous integration (CI) environment.
+
+Both tools rely on <a href="https://uxarray.readthedocs.io/en/latest/">UXarray</a> to load and store grids and data, which means they can accept any grid format supported by `uxarray.open_grid`. To view available options and parameters, run each tool with the `--help` flag.
+
+In addition to `UXarray` and YAC’s Python bindings, the following Python packages are required and must be installed in your environment:
+- `numpy`
+- `isodate`
+
+\section record_ICON Recording Data
+
+To record data sent by the ocean component to the atmosphere during a simulation, add `yac_record.py` as an additional process in your run script:
+
+\code{.sh}
+python yac_record.py ${ocean_grid} ocean_record.nc \
+  sea_surface_temperature \
+  eastward_sea_water_velocity \
+  northward_sea_water_velocity \
+  ocean_sea_ice_bundle \
+  --log-level INFO --coupling-config record_coupling.yaml
+\endcode
+
+The `record_coupling.yaml` file defines the coupling configuration for the record component:
+
+\code{.yaml}
+calendar: proleptic-gregorian
+timestep_unit: ISO_format
+coupling:
+  - source:
+      component: ocean
+      grid: icon_ocean_grid
+    target:
+      component: record
+      grid: record_grid
+    field:
+      - sea_surface_temperature
+      - eastward_sea_water_velocity
+      - northward_sea_water_velocity
+      - ocean_sea_ice_bundle
+    coupling_period: PT30M
+    src_lag: 1
+    tgt_lag: 1
+    interpolation:
+      - nnn
+\endcode
+
+When you run this setup, it will create an `ocean_record.nc` file containing the recorded data. You can then analyze or visualize the data using `UXarray` in a Jupyter notebook.
+
+\section replay_ICON Replaying Data
+
+To replace the ocean component with recorded data in an existing ICON run script, follow these steps:
+- **Disable the ocean component:** For example, comment out the line assigning the ocean namelist (e.g., `#namelist_list[1]="$oce_namelist"`). ICON will no longer launch ocean processes.
+- **Comment out all couplings from the atmosphere to the ocean** in your `coupling.yaml` configuration, since the replay tool does not provide the required fields to receive these data. Alternatively, you can set `missing_definition_is_fatal: false`.
+- **Add a process running the replay tool** with the following command:
+
+\code{.sh}
+python yac_replay.py ${ocean_grid} ocean_record.nc --compname ocean --gridname icon_ocean_grid --cell-mask 'cell_sea_land_mask < 0' --log-level INFO
+\endcode
+
+Here, the component name and grid name for the replay tool are set to `ocean` and `icon_ocean_grid` so that the existing coupling definitions in the run script can be reused. The grid mask is also specified, as this is required for compatibility with ICON-ocean and ensures identical results.
+
+*/

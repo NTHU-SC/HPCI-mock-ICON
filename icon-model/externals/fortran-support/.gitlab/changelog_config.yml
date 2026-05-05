@@ -1,0 +1,22 @@
+categories:
+  feature: New features
+  bugfix: Bug fixes
+  other: Other changes
+  default: Non-categorized
+
+template: |
+  {% if categories %}
+  {% each categories %}
+  ### {{ title }} ({% if single_change %}1 change{% else %}{{ count }} changes{% end %})
+
+  {% each entries %}
+  - [{{ title }}]({{ commit.reference }})\
+  by {{ author.reference }}
+
+  {% end %}
+
+  {% end %}
+  {% else %}
+  No change log.
+  {% end %}
+

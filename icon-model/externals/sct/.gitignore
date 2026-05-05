@@ -1,0 +1,55 @@
+*~
+[#]*[#]
+.\#*
+
+# http://www.gnu.org/software/automake
+
+Makefile.in
+
+# http://www.gnu.org/software/autoconf
+
+autom4te.cache
+autoscan.log
+autoscan-*.log
+aclocal.m4
+config.h.in
+configure
+config/config.guess
+config/compile
+config/install-sh
+config/missing
+config/config.sub
+config/test-driver
+
+# https://www.gnu.org/software/libtool/
+
+libtool
+config/ltmain.sh
+m4/libtool.m4
+m4/ltoptions.m4
+m4/ltsugar.m4
+m4/ltversion.m4
+m4/lt~obsolete.m4
+
+# Everything created by configure
+
+config.status
+config.log
+config.h
+fconfig.h
+Makefile
+Doxyfile
+stamp-h1
+stamp-h2
+a.out
+
+# Common files created by make
+
+.libs
+*.lo
+*.la
+*.o
+
+# Files created by MacOS
+*.dSYM
+.DS_Store

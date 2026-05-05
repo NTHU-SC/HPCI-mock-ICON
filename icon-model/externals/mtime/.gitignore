@@ -1,0 +1,173 @@
+# Copyright (c) 2013-2024 MPI-M, Luis Kornblueh, Rahul Sinha and DWD, Florian Prill. All rights reserved.
+#
+# SPDX-License-Identifier: CC0-1.0
+#
+
+# Autoreconf stage files (Autotools):
+/aclocal.m4
+/autom4te.cache/
+/config/compile
+/config/config.guess
+/config/config.h.in
+/config/config.h.in~
+/config/config.sub
+/config/depcomp
+/config/install-sh
+/config/ltmain.sh
+/config/missing
+/config/py-compile
+/config/test-driver
+/configure
+/configure~
+/m4/libtool.m4
+/m4/ltoptions.m4
+/m4/ltsugar.m4
+/m4/ltversion.m4
+/m4/lt~obsolete.m4
+Makefile.in
+
+# Configure stage files (Autotools):
+**/config/config.h
+**/config/stamp-h1
+**/doc/Doxyfile
+**/python/mtime/_mtime.py
+**/test/test_python.sh
+*/examples/iconatm.nml
+*/examples/iconoce.nml
+*/python/mtime/__init__.py
+.deps/
+Makefile
+config.log
+config.lt
+config.status
+libtool
+
+# Configure stage files (CMake):
+**/doc/Doxyfile.doc
+**/python/mtime/_mtime.py
+**/test/test_python.sh
+*/examples/iconatm.nml
+*/examples/iconoce.nml
+*/python/mtime/__init__.py
+CMakeCache.txt
+CMakeDoxyfile.in
+CMakeDoxygenDefaults.cmake
+CMakeFiles/
+CTestTestfile.cmake
+DartConfiguration.tcl
+Makefile
+build.ninja
+cmake_install.cmake
+mtime-config-version.cmake
+mtime-config.cmake
+mtime-targets.cmake
+
+# Build stage files (Autotools):
+**/python/mtime/.dirstamp
+**/python/mtime/.symlinkstamp
+**/python/mtime/__mtime.so
+*.la
+*.lo
+*.mod
+*.o
+.libs/
+
+# Build stage files (CMake):
+**/doc/html
+**/doc/latex
+**/doc/man
+**/examples/*.mod
+**/examples/callback_test
+**/examples/comp_weights
+**/examples/duration
+**/examples/example
+**/examples/iconatm
+**/examples/iconoce
+**/examples/model_integration
+**/examples/modulo
+**/examples/output_control
+**/examples/recurrence
+**/examples/repetitor
+**/examples/tas
+**/examples/test_cf_timeaxis
+**/examples/test_dace
+**/examples/test_jd_logic
+**/examples/uniq
+**/src/mod/
+**/test/test_runner
+*.[0-9].[0-9].[0-9].dylib
+*.[0-9].dylib
+*.a
+*.dylib
+*.so
+*.so.[0-9]
+*.so.[0-9].[0-9].[0-9]
+.ninja_deps
+.ninja_log
+
+# Documentation stage files (Autotools):
+**/doc/doxygen-doc/
+
+# Test stage files (Autotools):
+**/examples/*.dat
+**/examples/*.log
+**/examples/*.trs
+**/examples/callback_test
+**/examples/comp_weights
+**/examples/duration
+**/examples/example
+**/examples/iconatm
+**/examples/iconoce
+**/examples/model_integration
+**/examples/modulo
+**/examples/output_control
+**/examples/recurrence
+**/examples/repetitor
+**/examples/simulate_iau
+**/examples/tas
+**/examples/test_cf_timeaxis
+**/examples/test_dace
+**/examples/test_jd_logic
+**/examples/uniq
+**/test/*.log
+**/test/*.trs
+**/test/test_runner
+*.py[cod]
+__pycache__/
+
+# Test stage files (CMake):
+**/examples/*.dat
+*.py[cod]
+Testing/
+__pycache__/
+
+# Dist stage files (Autotools):
+mtime-*.tar.gz
+
+# Install stage files (CMake):
+install_manifest.txt
+
+# Compiler-specific by-products:
+*.L
+*.i
+
+# VIM files:
+.*.swp
+Session.vim
+tags
+
+# Core dump files:
+core
+core.[0-9]
+core.[0-9][0-9]
+core.[0-9][0-9][0-9]
+core.[0-9][0-9][0-9][0-9]
+core.[0-9][0-9][0-9][0-9][0-9]
+core.[0-9][0-9][0-9][0-9][0-9][0-9]
+core.[0-9][0-9][0-9][0-9][0-9][0-9][0-9]
+
+# Mac OS generated files:
+.DS_Store
+
+# CI/CD artifacts and caches (see .gitlab-ci.yml):
+/.ci_dir/

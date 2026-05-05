@@ -1,0 +1,95 @@
+#!/usr/bin/bash
+#
+# Config for the script collection to conduct STEP2
+# deriving a bc_land_frac.nc file from ESACCI data for use in ICON-Land simulations (see README.md)
+
+#############################################################################
+##################### Change according to your data #########################
+#############################################################################
+
+# model (defines workflow and specific settings below)
+model=quincy #jsbach or quincy
+
+# name of the output directory
+output_dir_name=./YOUROUTPUTPATH
+
+# cdo name of the grid (here 0.25deg)
+grid_name="global_0.25"
+
+# ----- Input: ESACCI
+# path to the ESACCI file
+esacci_file_pathway=/work/mj0143/icon_land_data_pool/preprocessing/esacci/rev004/
+esacci_file_name=ESACCI
+esacci_specific=LC-L4-LCCS-Map-300m-P1Y-aggregated-0.250000Deg
+esacci_year=2022
+esacci_vol=v2.1.1
+input_file_esacci=${esacci_file_pathway}/${model}_${esacci_file_name}-${esacci_specific}-${esacci_year}-${esacci_vol}.nc
+
+# esacci variables to be used (model dependent)
+if [ ${model} == "jsbach" ]; then
+  esacci_out_vars=bare,C,P,H,E,D,S,ice,urban,water
+  esacci_final_vars=bare,H,E,D,S
+  esacci_derived_vars=bare,H,HC4,TE,TD,ETE,ETD,RShrubs,DShrubs
+elif [ ${model} == "quincy" ]; then
+  esacci_out_vars=bare,C,P,H,NEDE,NEEV,BRDE,BREV,ice,urban,water
+  esacci_final_vars=bare,H,NEDE,NEEV,BRDE,BREV
+  esacci_derived_vars=bare,H,HC4,NEDE,NEEV,TrBE,TeBE,TrBR,TeBS
+else
+  echo "Unknown model selected (${model}), please check!"
+  exit 1
+fi
+expStringEsacciMask=$(echo ${esacci_derived_vars} | sed 's/,/\+/g')
+
+# ----- Climatology (annual precip, tavg and coldest month mean temp calculations)
+#       used for temperature and precipitation thresholds for splits of c3/c4 plants and broadleafed PFTs
+# Pathway to the file
+forcing_type="gswp3"
+climate_file="climate_gswp3_025_daily_"
+climate_input_path=/work/mj0143/icon_land_data/forcing/gswp3/regridded_025/
+
+# Selected years to calculate the climatology from
+clim_start_year=1991
+clim_end_year=2019
+
+# specifications for output
+tmin_tag="avg_of_coldest_month_mean_temperature_"
+tmin_name="clim_min_tmonmean"
+
+# Note: the unit of precipitation differs between forcings, CRUJRA has mm/day i.e. yearsum of daily data = "mm"
+#       -> for GSWP3 or other forcings the threshold or the target_unit/ calculations within calculate_climatologies might need to be adapted!
+precip_target_unit="mm"
+# Broadleaved splitting thresholds (suggested for precipitation = 1200 mm, min_mean_temperature = 15 degC)
+precip_threshold=1200
+min_mean_temperature_threshold=15
+
+# ----- Additional input only required for jsbach
+if [ ${model} == "jsbach" ]; then
+  # path to 1991-2020 Koppen-Geiger map file
+  jsb_KG_map=/work/mj0143/icon_land_data_pool/mpim/025/land_cover_fraction/prepro/rev001/BECK-et-all-2023_koppen_geiger_1991-2020_0p1_to_025_remaplaf.nc
+fi
+
+#---------------------------------------------- Misc
+# ----- info for attributes of the netcdf output file
+# specify the used cross walking table
+if [ ${model} == "jsbach" ]; then
+  cw_table="cw_jsb_based-on-Tab4_with_TabC1_bare_20250907.csv"
+elif [ ${model} == "quincy" ]; then
+  cw_table="cw_IQ_11-for-13_based-on-Tab4_20250829.csv"
+fi
+
+# global attributes
+esacci_preprocessing="Prepared ESACCI ${esacci_year} (${esacci_file_name}-${esacci_specific}; ${esacci_vol}) lccs classes for further preprocessing for ${model}"
+esacci_preprocessing="${esacci_preprocessing} -- used pft conversion table ${cw_table}: adapted from Harper et al. (2023) - Table 4"
+esacci_preprocessing="${esacci_preprocessing}; contact: jnabel@bgc-jena.mpg.de"
+esacci_comment="Used from ESACCI ${esacci_year}: nat. PFTs and bare. Split derived pfts to ${model} pfts using ${forcing_type} climatology." 
+esacci_reference="Harper et al. (2023) A 29-year time series of annual 300 m resolution plant-functional-type maps for climate models"
+
+# ----- Program flow specifications
+# name of temp directory
+temporary_dir=${output_dir_name}/${model}/temp_files
+
+# Do you want to keep temp_files?[Y/N]
+keep_tmp_dir=N
+
+# set cdo command to be silent and create no history
+cdo="cdo -s --no_history -b 64"

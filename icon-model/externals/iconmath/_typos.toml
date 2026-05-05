@@ -1,0 +1,15 @@
+[default]
+extend-ignore-re = [
+	".*_pn",
+]
+extend-ignore-words-re = [
+  "Comput",
+]
+
+[default.extend-words]
+Wirth = "Wirth" # author name
+nin = "nin" # number of inputs
+Pilar = "Pilar" # author name
+
+[default.extend-identifiers]
+f4dout = "f4dout" # file name

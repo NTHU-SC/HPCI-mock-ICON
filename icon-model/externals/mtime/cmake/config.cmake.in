@@ -1,0 +1,11 @@
+# Copyright (c) 2013-2024 MPI-M, Luis Kornblueh, Rahul Sinha and DWD, Florian Prill. All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+#
+
+@PACKAGE_INIT@
+
+include(${CMAKE_CURRENT_LIST_DIR}/mtime-targets.cmake)
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(mtime REQUIRED_VARS mtime_DIR)

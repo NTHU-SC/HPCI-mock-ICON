@@ -1,0 +1,15 @@
+*.log
+*.trs
+*.i
+*.h5
+*.h5_????-??-??_??:??:??
+test_*_run
+test_precision
+test_sct
+test_hdf5
+test_papi
+test_serial
+test_omp
+test_mpi
+test_hybrid
+test_hdf5_fortran

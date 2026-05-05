@@ -1,0 +1,76 @@
+#! /usr/bin/env bash
+#
+# install-standard-git-hooks  -- create necessary links to activate
+#                                the recommded set of git hooks
+#
+# Copyright  (C)  2024  Thomas Jahns <jahns@dkrz.de>
+#
+# Keywords: create autotool configured release in git
+# Author: Thomas Jahns <jahns@dkrz.de>
+# Maintainer: Thomas Jahns <jahns@dkrz.de>
+# URL: https://swprojects.dkrz.de/redmine/projects/scales-ppm
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are  permitted provided that the following conditions are
+# met:
+#
+# Redistributions of source code must retain the above copyright notice,
+# this list of conditions and the following disclaimer.
+#
+# Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+# Neither the name of the DKRZ GmbH nor the names of its contributors
+# may be used to endorse or promote products derived from this software
+# without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+#
+set -e
+verbose=:
+REPOTOP=$(git rev-parse --show-toplevel)
+relhooksrc='../../scripts/git-hooks'
+if [[ -d "${REPOTOP}/.git/hooks" ]]; then
+  # currently, only the pre-commit hook is needed
+  # shellcheck disable=SC2043
+  for hook in pre-commit ; do
+    hook_inst="${REPOTOP}/.git/hooks/$hook"
+    if [[ -e "${hook_inst}" ]]; then
+      if link_target=$(readlink "${hook_inst}") \
+          && [[ $link_target = "${relhooksrc}/$hook" ]]; then
+        if ${verbose-false} ; then
+           printf "%s\n" "skipping already installed hook $hook" >&2
+        fi
+        continue
+      fi
+      printf "%s\n" "warning: git hook $hook already installed!" \
+             "\tcreating backup and replacing.">&2
+      hook_bak=$(mktemp "${hook_inst}.bak${EPOCHSECONDS}.XXXXXXXX")
+      mv "${hook_inst}" "${hook_bak}"
+    fi
+    ln -s "${relhooksrc}/${hook}" "${hook_inst}"
+  done
+else
+  printf "%s\n" "error: Cannot find hook directory!" >&2
+  exit 1
+fi
+#
+# Local Variables:
+# mode: sh
+# coding: utf-8
+# license-project-url: "https://swprojects.dkrz.de/redmine/projects/scales-ppm"
+# license-default: "bsd"
+# End:
+#

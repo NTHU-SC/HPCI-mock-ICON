@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: 2025 DWD, MPI-M, DKRZ, KIT, ETH, MeteoSwiss
+# SPDX-License-Identifier: CC0-1.0
+
+repos:
+  - repo: https://github.com/cheshirekow/cmake-format-precommit
+    rev: v0.6.13
+    hooks:
+      - id: cmake-format
+        args:
+          - --in-place
+          - --dangle-parens=True
+          - --max-lines-hwrap=0
+          - --keyword-case=upper
+          - --autosort=True
+          - --first-comment-is-literal=True
+      - id: cmake-format
+        name: cmake-format (templates)
+        args:
+          - --in-place
+          - --dangle-parens=True
+          - --max-lines-hwrap=0
+          - --keyword-case=upper
+          - --autosort=True
+          - --first-comment-is-literal=True
+        types: [file]
+        files: \.cmake\.in$
+  - repo: https://github.com/fsfe/reuse-tool
+    rev: v5.0.2
+    hooks:
+      - id: reuse
+        stages: [manual]
+        always_run: true
+        verbose: true

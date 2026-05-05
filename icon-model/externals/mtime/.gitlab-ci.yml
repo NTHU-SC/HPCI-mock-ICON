@@ -1,0 +1,434 @@
+# Copyright (c) 2013-2024 MPI-M, Luis Kornblueh, Rahul Sinha and DWD, Florian Prill. All rights reserved.
+#
+# SPDX-License-Identifier: CC0-1.0
+#
+
+workflow:
+  auto_cancel:
+    on_new_commit: none
+    on_job_failure: none
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+    - if: $CI_COMMIT_BRANCH =~ /^release-.*/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      auto_cancel:
+        on_new_commit: interruptible
+        on_job_failure: all
+    - if: $CI_PIPELINE_SOURCE == "web"
+
+.colorized:
+  variables:
+    DEFAULT: '\033[0m'
+    RED: '\033[0;31m'
+
+.ci_dir:
+  variables:
+    CI_GITIGNORE_DIR: ${CI_PROJECT_DIR}/.ci_dir
+
+.common_pre_commit:
+  extends: .ci_dir
+  variables:
+    APK_CACHE_DIR: ${CI_GITIGNORE_DIR}/apk-cache
+    PRE_COMMIT_HOME: ${CI_GITIGNORE_DIR}/pre-commit
+  before_script:
+    - mkdir -p "${APK_CACHE_DIR}"
+    - apk --cache-dir "${APK_CACHE_DIR}" --update-cache add git pre-commit
+    - apk --cache-dir "${APK_CACHE_DIR}" cache clean
+    - |
+      # Verify pre-commit cache
+      (
+        set -o pipefail
+        python3 --version | diff - "${PRE_COMMIT_HOME}/python_version.txt" 2>/dev/null || {
+          rm -rf "${PRE_COMMIT_HOME}"
+          mkdir -p "${PRE_COMMIT_HOME}"
+          python3 --version > "${PRE_COMMIT_HOME}/python_version.txt"
+        }
+      )
+  tags:
+    - alpine
+  cache:
+    - key: apk-pre-commit
+      paths:
+        - ${APK_CACHE_DIR}
+    - key:
+        prefix: ${CI_JOB_NAME_SLUG}
+        files:
+          - .pre-commit-config.yaml
+      paths:
+        - ${PRE_COMMIT_HOME}
+
+Check licenses:
+  extends:
+    - .colorized
+    - .common_pre_commit
+  script:
+    - |
+      # pre-commit run --hook-stage manual reuse
+      pre-commit run --color=always --hook-stage manual reuse || {
+        printf "${RED}You can reproduce this check locally with \`pre-commit run --hook-stage manual reuse\`.
+      See also ${CI_PROJECT_URL}/-/blob/${CI_DEFAULT_BRANCH}/CONTRIBUTING.md#coding-style.\n${DEFAULT}"
+        exit 1
+      }
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: manual
+    - when: always
+  interruptible: true
+
+Check style:
+  extends:
+    - .colorized
+    - .common_pre_commit
+  variables:
+    STYLE_PATCH: style.patch
+  script:
+    - |
+      # pre-commit run --all-files
+      pre-commit run --color=always --all-files || {
+        git diff --ignore-submodules --patch-with-raw > "${STYLE_PATCH}" && {
+          test -s "${STYLE_PATCH}" && {
+            printf "${RED}At least some of the issues can be resolved with the patch (see artifacts):
+        ${CI_JOB_URL}/artifacts/raw/${STYLE_PATCH}.\n${DEFAULT}"
+          } || {
+            printf "${RED}The issues cannot be resolved with a patch.\n${DEFAULT}"
+            rm -f "${STYLE_PATCH}"
+          }
+        } || {
+          printf "${RED}Failed to generate a patch file.\n${DEFAULT}"
+          rm -f "${STYLE_PATCH}"
+        }
+        printf "${RED}You can reproduce this check locally with \`pre-commit run --all-files\`.
+      See also ${CI_PROJECT_URL}/-/blob/${CI_DEFAULT_BRANCH}/CONTRIBUTING.md#coding-style.\n${DEFAULT}"
+        exit 1
+      }
+  artifacts:
+    paths:
+      - ${STYLE_PATCH}
+    when: on_failure
+
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: manual
+    - when: always
+  interruptible: true
+
+include:
+  - project: "anw_dienste/ci-templates"
+    file: ".slurm-ci.yml"
+
+.common:
+  extends:
+    - .default
+    - .colorized
+    - .ci_dir
+  variables:
+    TIME_LIMIT: "10:00"
+    JOB_COUNT: 8
+    SCHEDULER_PARAMETERS: >-
+      --account=ka1125
+      --nodes=1
+      --ntasks=${JOB_COUNT}
+      --partition=shared
+      --time=${TIME_LIMIT}
+    GIT_DEPTH: 1
+    CC: gcc
+    CFLAGS: -g -O2
+    FC: gfortran
+    FCFLAGS: -g -O2
+    LIBCHECK_ROOT: ${CI_GITIGNORE_DIR}/libcheck
+    LIBCHECK_URL: https://github.com/libcheck/check/releases/download/0.15.2/check-0.15.2.tar.gz
+    LIBCHECK_SHA256: a8de4e0bacfb4d76dd1c618ded263523b53b85d92a146d8835eb1a52932fa20a
+    INSTALL_PREFIX: ${CI_GITIGNORE_DIR}/install
+    WARNINGS_AWK_SCRIPT: '/warning/ || /WARNING/ || /Warning/'
+    BUILD_LOG: ${CI_PROJECT_DIR}/build.log
+  before_script:
+    - set -euo pipefail
+    - module purge
+    - module load git gcc/11.2.0-gcc-11.2.0
+    - |
+      # Install libcheck
+      if test ! -d "${LIBCHECK_ROOT}"; then
+        (
+          set -x
+          mkdir -p "${CI_GITIGNORE_DIR}/build_libcheck" && \
+          cd "${CI_GITIGNORE_DIR}/build_libcheck" && \
+          curl -L "${LIBCHECK_URL}" > check.tar.gz && \
+          echo "${LIBCHECK_SHA256} check.tar.gz" | sha256sum -c && \
+          tar xf check.tar.gz --strip-components=1 && \
+          ./configure --disable-static --prefix="${LIBCHECK_ROOT}" CC=gcc CFLAGS='-g -O2' CPPFLAGS= && \
+          make install
+        ) || {
+          printf "${RED}Failed to install libcheck.\n${DEFAULT}"
+          exit 1
+        }
+        # Keep the include and lib directories only:
+        rm -rf $(find "${LIBCHECK_ROOT}" -mindepth 1 -maxdepth 1 -not \( -name 'include' -o -name 'lib' \))
+        rm -rf "${LIBCHECK_ROOT}/lib/pkgconfig"
+      else
+        # Fix up the libtool file:
+        sed -i "s|^libdir=.*|libdir='${LIBCHECK_ROOT}/lib'|" $(find "${LIBCHECK_ROOT}" -name '*.la')
+      fi
+  script:
+    - |
+      # Check if there are compiler warnings
+      compiler_warnings="${CI_PROJECT_DIR}/compiler_warnings.txt"
+      awk "${WARNINGS_AWK_SCRIPT}" "${BUILD_LOG}" > "${compiler_warnings}"
+      test ! -s "${compiler_warnings}" || {
+        printf "${RED}The compiler issued warnings:\n"
+        cat "${compiler_warnings}"
+        printf "${DEFAULT}"
+        exit 1
+      }
+      rm -f "${BUILD_LOG}" "${compiler_warnings}"
+    - |
+      # Check if there are untracked files
+      untracked_files=$( \
+        git -C "${CI_PROJECT_DIR}" \
+        -c core.excludesfile= \
+        ls-files --others \
+        --exclude-standard \
+      )
+      test -z "${untracked_files}" || {
+        printf "${RED}The job produced unexpected files:\n${untracked_files}
+      Update the '.gitignore' file.\n${DEFAULT}"
+        exit 1
+      }
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: manual
+    - when: always
+  interruptible: true
+  cache:
+    policy: pull
+    key: ${LIBCHECK_SHA256}
+    paths:
+      - ${LIBCHECK_ROOT}
+
+.common_autotools:
+  extends: .common
+  variables:
+    CONFIG_EXTRA_ARGS:
+    MAKEFLAGS: --jobs=${JOB_COUNT} V=1
+    AM_COLOR_TESTS: always
+  script:
+    - >
+      test -f ./configure || ./autogen.sh
+    - mkdir build && cd build
+    - >
+      ../configure
+      --enable-check
+      --with-check-root="${LIBCHECK_ROOT}"
+      --enable-python
+      --disable-maintainer-mode
+      --prefix="${INSTALL_PREFIX}"
+      ${CONFIG_EXTRA_ARGS}
+    - make --output-sync=target check AM_COLOR_TESTS=no TESTS= 2>&1 | tee "${BUILD_LOG}"
+    - make --silent --keep-going check
+    - make install
+    - make installcheck
+    - !reference [.common, script]
+  artifacts:
+    when: on_failure
+    paths:
+      - "**/config.log"
+      - "**/test-suite.log"
+
+.common_cmake:
+  extends: .common
+  variables:
+    CMAKE_EXTRA_ARGS:
+    # Cmake initializes Fortran compiler flags from FFLAGS:
+    FFLAGS: ${FCFLAGS}
+  script:
+    - mkdir build && cd build
+    - >
+      cmake ..
+      -DBUILD_TESTING:BOOL=ON
+      -DCheck_ROOT="${LIBCHECK_ROOT}"
+      -DMTIME_ENABLE_PYTHON:BOOL=ON
+      -DCMAKE_INSTALL_PREFIX:PATH="${INSTALL_PREFIX}"
+      -G"${CMAKE_GENERATOR}"
+      ${CMAKE_EXTRA_ARGS}
+    - ${MAKE_CMD} 2>&1 | tee "${BUILD_LOG}"
+    - ${MAKE_CMD} test
+    - ${MAKE_CMD} install
+    - py_lib_prefix=$(dirname $(find "${INSTALL_PREFIX}" -path '*/mtime/__init__.py' -exec dirname {} + -quit))
+    - PYTHONPATH="${py_lib_prefix}${PYTHONPATH+":${PYTHONPATH}"}" python3 test/test_python.sh
+    - !reference [.common, script]
+  artifacts:
+    when: on_failure
+    paths:
+      - "**/CMakeCache.txt"
+      - "**/LastTest.log"
+
+.common_cmake_makefiles:
+  extends: .common_cmake
+  variables:
+    CMAKE_GENERATOR: Unix Makefiles
+    MAKE_CMD: make --jobs=${JOB_COUNT} VERBOSE=1
+
+.common_cmake_ninja:
+  extends: .common_cmake
+  variables:
+    CMAKE_GENERATOR: Ninja
+    MAKE_CMD: ninja -j ${JOB_COUNT} --verbose
+  before_script:
+    - !reference [.common_cmake, before_script]
+    - export PATH="/sw/spack-levante/ninja-1.11.1-ahbo5l/bin:${PATH}"
+
+.check_gcc:
+  variables:
+    CFLAGS: -g -O2 -Wall -Wextra -pedantic
+    FCFLAGS: -g -O2 -Wall -Wextra -pedantic -fbounds-check
+  before_script: []
+
+.check_intel:
+  variables:
+    CC: icc
+    FC: ifort
+  before_script:
+    - module load intel-oneapi-compilers/2022.0.1-gcc-11.2.0
+
+.check_nvhpc:
+  variables:
+    CC: nvc
+    FC: nvfortran
+  before_script:
+    - module load nvhpc/24.7-gcc-11.2.0
+
+.check_nag:
+  variables:
+    FC: nagfor
+    FCFLAGS: -g -O2 -C=all
+    # Ignore Questionable warnings:
+    WARNINGS_AWK_SCRIPT: '!/^\[NAG Fortran Compiler normal termination/ && (/warning/ || /WARNING/ || /Warning/)'
+  before_script:
+    - module load nag/7.1-gcc-11.2.0
+
+Check with GCC 11.2.0 (Autotools):
+  extends:
+    - .common_autotools
+    - .check_gcc
+  before_script:
+    - !reference [.common_autotools, before_script]
+    - !reference [.check_gcc, before_script]
+  cache:
+    policy: pull-push
+
+Check with GCC 11.2.0 (CMake, Ninja):
+  extends:
+    - .common_cmake_ninja
+    - .check_gcc
+  before_script:
+    - !reference [.common_cmake_ninja, before_script]
+    - !reference [.check_gcc, before_script]
+
+Check with Intel 2021.5.0 (Autotools):
+  extends:
+    - .common_autotools
+    - .check_intel
+  variables:
+    # Ignore the warning on a deprecated flag injected by libtool:
+    WARNINGS_AWK_SCRIPT: '!/-nofor_main/ && (/warning/ || /WARNING/ || /Warning/)'
+  before_script:
+    - !reference [.common_autotools, before_script]
+    - !reference [.check_intel, before_script]
+
+Check with Intel 2021.5.0 (CMake, Unix Makefiles):
+  extends:
+    - .common_cmake_makefiles
+    - .check_intel
+  before_script:
+    - !reference [.common_cmake_makefiles, before_script]
+    - !reference [.check_intel, before_script]
+
+Check with NVHPC 24.7 (Autotools):
+  extends:
+    - .common_autotools
+    - .check_nvhpc
+  before_script:
+    - !reference [.common_autotools, before_script]
+    - !reference [.check_nvhpc, before_script]
+    # Libtool does not know about NVHPC and its PIC flag:
+    - export FCFLAGS="$FCFLAGS -fpic"
+
+Check with NVHPC 24.7 (CMake, Ninja):
+  extends:
+    - .common_cmake_ninja
+    - .check_nvhpc
+  before_script:
+    - !reference [.common_cmake_ninja, before_script]
+    - !reference [.check_nvhpc, before_script]
+
+Check with NAG 7.1.7114 (Autotools):
+  extends:
+    - .common_autotools
+    - .check_nag
+  before_script:
+    - !reference [.common_autotools, before_script]
+    - !reference [.check_nag, before_script]
+    # nagfor is supposed to use non-default gcc:
+    - export FCFLAGS="-Wc=`which gcc` $FCFLAGS"
+
+Check with NAG 7.1.7114 (CMake, Unix Makefiles):
+  extends:
+    - .common_cmake_makefiles
+    - .check_nag
+  before_script:
+    - !reference [.common_cmake_makefiles, before_script]
+    - !reference [.check_nag, before_script]
+    # nagfor is supposed to use non-default gcc:
+    - export FFLAGS="-Wc=`which gcc` $FFLAGS"
+
+.common_html:
+  variables:
+    BUILD_DIRECTORY: ${CI_PROJECT_DIR}/build
+    HTML_BUILD_DIRECTORY: ${BUILD_DIRECTORY}/doc/html
+
+Generate HTML pages:
+  extends: .common_html
+  before_script:
+    - apk add cmake gcc gfortran musl-dev
+  script:
+    - >
+      cmake
+      -S "${CI_PROJECT_DIR}"
+      -B "${BUILD_DIRECTORY}"
+      -DCMAKE_C_COMPILER=gcc
+      -DCMAKE_Fortran_COMPILER=gfortran
+      -DBUILD_TESTING:BOOL=OFF
+      -DMTIME_ENABLE_PYTHON:BOOL=OFF
+      -DMTIME_BUILD_DOCS:BOOL=ON
+      -DDOXYGEN_GENERATE_LATEX:BOOL=OFF
+      -DDOXYGEN_GENERATE_MAN:BOOL=OFF
+      -DDOXYGEN_GENERATE_HTML:BOOL=ON
+    - cmake --build "${BUILD_DIRECTORY}" --target doc
+  tags:
+    - doxygen
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: manual
+    - when: always
+  interruptible: true
+  artifacts:
+    paths:
+      - ${HTML_BUILD_DIRECTORY}
+
+Publish HTML pages:
+  extends: .common_html
+  variables:
+    GIT_STRATEGY: none
+    HTML_PUBLIC_DIRECTORY: ${CI_PROJECT_DIR}/public
+  needs:
+    - Generate HTML pages
+  script:
+    - mv "${HTML_BUILD_DIRECTORY}" "${HTML_PUBLIC_DIRECTORY}"
+  tags:
+    - alpine
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+  interruptible: false
+  artifacts:
+    paths:
+      - ${HTML_PUBLIC_DIRECTORY}
+  pages: true

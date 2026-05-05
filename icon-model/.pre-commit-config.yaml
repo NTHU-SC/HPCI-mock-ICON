@@ -1,0 +1,100 @@
+# ICON
+#
+# ---------------------------------------------------------------
+# Copyright (C) 2004-2026, DWD, MPI-M, DKRZ, KIT, ETH, MeteoSwiss
+# Contact information: icon-model.org
+# See AUTHORS.TXT for a list of authors
+# See LICENSES/ for license information
+# SPDX-License-Identifier: CC0-1.0
+# ---------------------------------------------------------------
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: end-of-file-fixer
+        exclude: |
+          (?x)^(
+            # Exclude external files:
+            doc/www/_static/tex-mml-chtml.js
+          )$
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+        exclude: |
+          (?x)^(
+            # Exclude external files:
+            LICENSES/.* |
+            doc/www/_static/tex-mml-chtml.js
+          )$
+  - repo: https://github.com/cheshirekow/cmake-format-precommit
+    rev: v0.6.13
+    hooks:
+      - id: cmake-format
+        args:
+          - --in-place
+          - --dangle-parens=True
+          - --max-lines-hwrap=0
+          - --keyword-case=upper
+          - --autosort=True
+          - --first-comment-is-literal=True
+        exclude: |
+          (?x)^(
+            # Exclude external files:
+            test/microphysics_1mom_schemes/cmake/Modules/FindNetCDF.cmake
+          )$
+  - repo: https://gitlab.dkrz.de/icon/ci-tooling/icon-openacc-beautifier.git
+    rev: v1.1.0
+    hooks:
+      - id: icon-openacc-beautifier
+  - repo: https://github.com/pycqa/isort
+    rev: 6.0.1
+    hooks:
+      - id: isort
+        args: [--profile=black, --line-length=80]
+  - repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 25.9.0
+    hooks:
+      - id: black
+        args: [--line-length=80]
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v21.1.1
+    hooks:
+      - id: clang-format
+        types_or: [c++, c, cuda]
+        exclude: |
+          (?x)^(
+            # Exclude .h files that are not C/C++ headers:
+            schedulers/ecmwf/include/.*\.h
+          )$
+      - id: clang-format
+        name: clang-format (templates)
+        types_or: []
+        types: [text]
+        files: '.*\.ipp$'
+  - repo: https://github.com/fortran-lang/fprettify
+    # The latest release v0.3.7 is very old and does not have a number of
+    # important bug fixes:
+    #   - https://github.com/fortran-lang/fprettify/commit/9e0108c34f651b9444582715d281672e59fa0d9c
+    #   - https://github.com/fortran-lang/fprettify/commit/cb254022c2034ad3b8f744f4dad1bf5b7438815d
+    # Therefore, we use the current HEAD of the master branch:
+    rev: ee0cf1b1890fee615942df00075cf2134c709542
+    hooks:
+      - id: fprettify
+        name: fprettify
+        files: |
+          (?x)^(
+            # Apply to selected directories only:
+            ragnarok |
+            test/unit-tests
+          )/.*\.([fF]\d*|incf?)$ |
+          ^(
+            # Apply to selected files only:
+            src/shr_horizontal/mo_rbf_coefficients_io.f90
+          )$
+  - repo: https://github.com/fsfe/reuse-tool
+    rev: v5.1.1
+    hooks:
+      - id: reuse
+        stages: [manual]
+        always_run: true
+        verbose: true

@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# ICON
+#
+# ------------------------------------------
+# Copyright (C) 2004-2026, DWD, MPI-M, DKRZ, KIT, ETH, MeteoSwiss
+# Contact information: icon-model.org
+# See AUTHORS.TXT for a list of authors
+# See LICENSES/ for license information
+# SPDX-License-Identifier: BSD-3-Clause
+# ------------------------------------------
+
+set -eu
+
+unset CDPATH
+script_dir=$(cd "$(dirname "$0")"; pwd)
+icon_dir=$(cd "${script_dir}/../.."; pwd)
+
+linux_codename=$(lsb_release -sc)
+
+unset MAKEFLAGS
+makeflags='--jobs=8 --no-print-directory --output-sync=target V=1'
+
+# Make sure we disable all features that require MPI:
+${icon_dir}/config/mpim/${linux_codename}.gcc --disable-mpi --disable-parallel-netcdf --disable-coupling --disable-yaxt --disable-cdi-pio --disable-comin --enable-openmp
+
+make ${makeflags}
+
+if test -n "${BB_NAME-}"; then
+  "${icon_dir}/scripts/buildbot_scripts/build_checks/check_nompi.sh"
+  "${icon_dir}/scripts/buildbot_scripts/build_checks/check_depgen_warnings.sh"
+  "${icon_dir}/scripts/buildbot_scripts/build_checks/check_remake.sh"
+  # Build the tests in parallel:
+  make ${makeflags} --keep-going TESTS= check
+  # Run the tests serially:
+  make --keep-going ICON_VERBOSE_TESTS=1 ICON_COLOR_TESTS=always V=1 check
+  "${icon_dir}/scripts/buildbot_scripts/build_checks/check_git_untracked.sh"
+fi

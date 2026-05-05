@@ -1,0 +1,1 @@
+/capstor/scratch/cscs/ahamzehl/input_Testcase/icbc/ICON-ART-UNSTRUCTURED_DOM01_20220818T00.nc

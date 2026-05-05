@@ -1,0 +1,13 @@
+#!@SHELL@
+
+# Copyright (c) 2024 The YAC Authors
+#
+# SPDX-License-Identifier: CC0-1.0
+
+set -e
+
+@TEST_MPI_FALSE@exit 77
+@ENABLE_FORTRAN_BINDINGS_FALSE@exit 77
+
+@MPI_LAUNCH@ -n 4 ./test_dummy_coupling_raw_dble.x
+@MPI_LAUNCH@ -n 4 ./test_dummy_coupling_raw_real.x

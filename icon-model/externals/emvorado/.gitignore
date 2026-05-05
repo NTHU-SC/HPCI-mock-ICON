@@ -1,0 +1,7 @@
+*.o
+*.clw.d
+*.f90.d
+*.pp-*.f90
+*.xmodstamp
+.dirstamp
+*~

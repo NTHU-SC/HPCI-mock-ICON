@@ -1,0 +1,68 @@
+#!@SHELL@
+# Copyright (c) 2024 The YAC Authors
+#
+# SPDX-License-Identifier: CC0-1.0
+
+# -*- python -*-
+
+""":"
+
+set -e
+
+@TEST_MPI_FALSE@exit 77
+@PYTHON@ -c 'import uxarray, isodate' || exit 77
+
+RECORD="@PYTHON@ @abs_top_srcdir@/tools/yac_record.py"
+REPLAY="@PYTHON@ @abs_top_srcdir@/tools/yac_replay.py"
+GRIDFILE="@top_builddir@/grids/icon_grid_0030_R02B03_G.nc"
+
+PYTHONPATH="@abs_top_builddir@/python:$PYTHONPATH"
+export PYTHONPATH
+
+cat > "test_record_noise_coupling.yaml" <<EOF
+timestep_unit: hour
+calendar: proleptic-gregorian
+coupling:
+  - src_component: noisegenerator
+    tgt_component: record
+    src_grid: noise_grid
+    tgt_grid: record_grid
+    coupling_period: 1
+    interpolation:
+      - nnn
+    field: noise
+EOF
+
+@MPI_LAUNCH@ \
+     -n 1 @PYTHON@ "$0" noise : \
+     -n 1 $RECORD $GRIDFILE test_record_noise.noise.nc noise --log-level INFO --coupling-config test_record_noise_coupling.yaml --points vertex
+
+@MPI_LAUNCH@ \
+     -n 1 @PYTHON@ "$0" plot : \
+     -n 1 $REPLAY $GRIDFILE test_record_noise.noise.nc --log-level INFO
+
+rm test_record_noise.noise.nc test_record_noise_coupling.yaml
+exit 0
+":"""
+
+from yac import YAC
+from yac.examples import Driver, NoiseGenerator, Plotter
+import sys
+
+yac = YAC(default_instance=True)
+
+driver = Driver(start="2020-01-01T00:00", end="2020-01-02T00:00")
+
+if sys.argv[1] == "noise":
+   driver.run(
+       NoiseGenerator(timestep="PT1H"),
+   )
+elif sys.argv[1] == "plot":
+  driver.run(
+     Plotter(
+         variables=[("replay", "replay_grid", "noise")],
+         outdir="test_replay2plot.plots",
+     ),
+  )
+else:
+  raise RuntimeError(f"Unknown command-line argument: {sys.argv[1]}")

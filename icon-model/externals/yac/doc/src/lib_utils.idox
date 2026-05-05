@@ -1,0 +1,10 @@
+Additional functionallities that can help writing components and are used by
+the example are combined into the \ref yac_lib_utils "Utility library". This
+includes:
+
+- read of various grid file types
+- generation of regular Gaussian and cubed sphere grids
+- VTK-file generation
+
+It has a C and \ref yac_utils.F90 "Fortran" interface. The C header
+file (yac_utils.h) is generated automatically during the building process.

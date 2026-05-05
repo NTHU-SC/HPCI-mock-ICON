@@ -1,0 +1,28 @@
+# Copyright (c) 2013-2024 MPI-M, Luis Kornblueh, Rahul Sinha and DWD, Florian Prill. All rights reserved.
+#
+# SPDX-License-Identifier: CC0-1.0
+#
+
+# Formatted entire C code base with clang-format
+e40dfb2fb836345efecbdbea19b207e0171213d3
+
+# Formatted entire Fortran code base with fprettify
+1c9412a248fd8e195147455ce09a50d69eb10ead
+
+# Manually formatted mtime_iso8601.rl
+f913b91b554cfb59a5734f34b62656f4a623e0dd
+
+# Formatted Fortran include files with fprettify
+132b2c4b2397268e2bba02533c4d9db9d0535f40
+
+# Formatted Python code in the src directory with isort and black
+acb430c56641057e83765c3662c69c2fbc3c84af
+
+# Formatted entire CMake code base with cmake-format
+b34d40a92a6a4508e37705bd0d71b0e95be748b5
+
+# Reformatted entire CMake code base with updated configuration
+e952f9224ade9bfc438d47cf8675a4e3e175b582
+
+# Fixed endings and trailing whitespaces in text files
+18ae4cfebab62ebae5f5fca8e88afe2a3d196eef

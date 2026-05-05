@@ -1,0 +1,45 @@
+# ICON
+#
+# ---------------------------------------------------------------
+# Copyright (C) 2004-2025, DWD, MPI-M, DKRZ, KIT, ETH, MeteoSwiss
+# Contact information: icon-model.org
+#
+# See AUTHORS.txt for a list of authors
+# See LICENSES/ for license information
+# SPDX-License-Identifier: CC0-1.0
+# ---------------------------------------------------------------
+
+version = 1
+
+[[annotations]]
+# Documentation and its source files:
+path = [
+  "AUTHORS.txt",
+  "CONTRIBUTING.md",
+  "README.md",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2004-2025, DWD, MPI-M, DKRZ, KIT, ETH, MeteoSwiss"
+SPDX-License-Identifier = "CC-BY-4.0"
+
+[[annotations]]
+# "Unimportant" technical files:
+path = [
+  ".gitignore",
+  ".gitlab/**",
+  ".clang-format",
+  ".cmake-format.py",
+  "_typos.toml"
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2004-2025, DWD, MPI-M, DKRZ, KIT, ETH, MeteoSwiss"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+# GitLab CI configuration file:
+path = [
+  ".gitlab-ci.yml"
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2004-2025, DWD, MPI-M, DKRZ, KIT, ETH, MeteoSwiss"
+SPDX-License-Identifier = "BSD-3-Clause"

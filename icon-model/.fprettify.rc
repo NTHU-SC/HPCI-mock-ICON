@@ -1,0 +1,27 @@
+# ICON
+#
+# ---------------------------------------------------------------
+# Copyright (C) 2004-2026, DWD, MPI-M, DKRZ, KIT, ETH, MeteoSwiss
+# Contact information: icon-model.org
+# See AUTHORS.TXT for a list of authors
+# See LICENSES/ for license information
+# SPDX-License-Identifier: CC0-1.0
+# ---------------------------------------------------------------
+
+indent=2
+line-length=132
+whitespace=2
+whitespace-assignment
+whitespace-comma
+whitespace-decl
+whitespace-relational
+whitespace-logical
+whitespace-print
+whitespace-type=False
+whitespace-intrinsics
+strict-indent
+enable-decl
+enable-replacements
+c-relations
+case=[2, 2, 2, 1]
+strip-comments

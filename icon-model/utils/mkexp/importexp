@@ -1,0 +1,255 @@
+#! /bin/sh
+
+BINDIR=$(dirname $0)
+
+#% help
+BUILD_SUBDIR=
+IGNORE_ERRORS=true
+HELP=false
+WITH_INTAKE=false
+INTAKE_ONLY=false
+SLURM_JOB_CPUS_PER_NODE=256
+DEBUG=false
+RESTART=
+#% endhelp
+
+while getopts a:b:B:d:D:e:EhIis:t:c:r:x OPTOPT
+do
+    case $OPTOPT in
+        #% help
+        a) ADD_RUN_ROUTINES=$OPTARG ;;
+        b) BUILD_SUBDIR=$OPTARG ;;
+        B) BUILD_DIR=$OPTARG ;;
+        d) DATA_BASE_DIR=$OPTARG ;;
+        D) DATA_DIR=$OPTARG ;;
+        e) ENVIRONMENT=$OPTARG ;;
+        E) IGNORE_ERRORS=false ;;
+        h) HELP=true ;;
+        i) WITH_INTAKE=true ;;
+        i) INTAKE_ONLY=true ;;
+        s) CUSTOM_SUBDIR=$OPTARG ;;
+        t) EXP_TYPE=$OPTARG ;;
+        c) SLURM_JOB_CPUS_PER_NODE=$OPTARG ;;
+        r) RESTART=$OPTARG ;;
+        x) DEBUG=true ;;
+        #% endhelp
+        *) exit 1;;
+    esac
+done
+shift $((OPTIND -1))
+
+if $HELP
+then
+    awk '/^[ \t]*#%[ \t]*endhelp[ \t]*$/ {PRINT=0}; PRINT {print}; /^[ \t]*#%[ \t]*help[ \t]*$/ {PRINT=1}' $0
+    exit
+fi
+
+if [ -w . ]
+then
+    TMPDIR=$PWD
+    export TMPDIR
+fi
+$DEBUG || trap 'rm -rf $MKTEMP_DIR' 0
+MKTEMP_DIR=$(mktemp -d)
+RUN_FILE=$MKTEMP_DIR/run
+LOG_FILE=$MKTEMP_DIR/log
+WORK_DIR=$MKTEMP_DIR/work
+SCRIPT_DIR=$MKTEMP_DIR/scripts
+mkdir $WORK_DIR $SCRIPT_DIR
+
+for RUN_SCRIPT
+do
+    RUN_SCRIPT_BASE=$(basename $RUN_SCRIPT)
+    RUN_SCRIPT_BASE=${RUN_SCRIPT_BASE#exp.}
+    RUN_SCRIPT_BASE=${RUN_SCRIPT_BASE%.*}
+
+    RUN_BASE_DIR=$(realpath -L $(dirname $RUN_SCRIPT))
+    RUN_BASE_DIR=${RUN_BASE_DIR%/$CUSTOM_SUBDIR}
+
+    MODEL_BASE_DIR=${BUILD_DIR:-$RUN_BASE_DIR}
+    MODEL_BASE_DIR=${MODEL_BASE_DIR%/scripts}
+    MODEL_BASE_DIR=${MODEL_BASE_DIR%/$RUN_SCRIPT_BASE}
+    MODEL_BASE_DIR=${MODEL_BASE_DIR%/experiments}
+    MODEL_BASE_DIR=${MODEL_BASE_DIR%/run}
+    MODEL_BASE_DIR=${MODEL_BASE_DIR%/$BUILD_SUBDIR}
+
+    RUN_BASE_DIR=$MODEL_BASE_DIR/run
+    BUILD_DIR=$MODEL_BASE_DIR/$BUILD_SUBDIR
+
+    echo "Analyzing '$RUN_SCRIPT'" >&2
+
+    # Get current directory settings
+    eval $(perl -lne '
+        if(m{^\s*(?:export\s+)?((?:BUILD|MODEL)_DIR|basedir)=["'\'']?(.*?)/*["'\'']?\s*$}) {
+            print "OLD_$1='\''$2'\''"
+        }
+    ' $RUN_SCRIPT)
+
+    # New style scripts will make sure that helper scripts are found.
+    # So no need to hack the . ./* calls (see 4. below)
+    if grep '^ *cd  *\$BUILD_DIR/run' $RUN_SCRIPT > /dev/null
+    then
+        RUN_BASE_DIR=.
+    fi
+
+    # "Normalize" run script
+    # 1. levante scripts use bash, where -x does not show here-docs
+    # 2. get rid of possible +x settings (and optionally -e)
+    # 3. to handle external scripts, replace script dir with tmp dir
+    # 4. to handle external scripts, replace working dir with tmp dir
+    # 4a to handle external scripts, remove basedir refs from here docs
+    # 5. to handle external scripts, replace ./ calls appropriately
+    # 6. to handle external scripts, replace build and model dirs appropriately
+    # 7. ignore function make_and_change_to_experiment_dir
+    # 8. use original model base for executable
+
+    if $IGNORE_ERRORS
+    then
+        REMOVE_ERROR_FLAG_SH='
+s:^(\s*)(set\s+-e\s*$|(set\s+-\w+)e):\1\3:
+s@^(\s*)check_error@\1: check_error@
+s:^(\s*)(\$\{START\}|srun):\1exit # \2:
+'
+        REMOVE_ERROR_FLAG_PL='\s+-e\s*$|(\s+-\w+)e|'
+    fi
+    
+    [ "$OLD_BUILD_DIR" ] && SUBST_BUILD_DIR="s:$OLD_BUILD_DIR:$BUILD_DIR:"
+    [ "$OLD_MODEL_DIR" ] && SUBST_MODEL_DIR="s:$OLD_MODEL_DIR:$MODEL_BASE_DIR:"
+    [ "$OLD_basedir" ] && SUBST_basedir="s:$OLD_basedir:$MODEL_BASE_DIR:"
+    [ "${ADD_RUN_ROUTINES-}" ] && SUBST_add_run_routines="s:^.*add_run_routines:. ${ADD_RUN_ROUTINES}:"
+
+    EXEC_SHELL=$(perl -ne '/^\#!\s*(\/\S+)/x and print($1); exit' $RUN_SCRIPT)
+    case $EXEC_SHELL in
+        *ksh) SHOW_HERE_DOCS='' ;;
+        *) SHOW_HERE_DOCS='\
+for x in ${master_namelist:-icon_master.namelist} ${atm_namelist:-${atmo_namelist:-NAMELIST_atm}} ${jsbach_namelist:-NAMELIST_lnd}* ${oce_namelist:-${ocean_namelist:-NAMELIST_oce}}\
+do\
+    echo "cat > $x << EOF"\
+    cat $x\
+    echo EOF\
+done\
+'       ;;
+    esac
+
+    sed -r '
+        s@^(\s*)(cat\s+\$thisscript)@\1: \2@
+        2 i\
+cd '$SCRIPT_DIR'
+        /^\s*#.*start\s+experiment/ i'"$SHOW_HERE_DOCS"'
+        s:^(\s*)(set\s+\+x\s*$|(set\s+\+\w+)x):\1\3:
+        '"${REMOVE_ERROR_FLAG_SH-}"'
+        s:^(\s*)SCRIPT_DIR=.*$:\1SCRIPT_DIR='$SCRIPT_DIR':
+        s:^(\s*)experiments_dir=.*$:\1experiments_dir='$WORK_DIR':
+        s:^(\s*)BUILD_DIR=.*$:\1BUILD_DIR='$BUILD_DIR':
+        s:^(\s*)EXPDIR=.*$:\1EXPDIR='$WORK_DIR':
+        s:(>\s*)\$\{?basedir\}?/run/:\1:
+        s:^(\s*\.\s+)\./:\1'$RUN_BASE_DIR'/:
+        s:^(\s*(export\s+)?basedir=).*$:\1'$MODEL_BASE_DIR':
+        '${SUBST_BUILD_DIR-}'
+        '${SUBST_MODEL_DIR-}'
+        '${SUBST_basedir-}'
+        '"${SUBST_add_run_routines-}"'
+        s/^\s*make_and_change_to_experiment_dir/: &/
+    ' "$RUN_SCRIPT" > $RUN_FILE
+
+    # Get script shell without possible +x/-e settings
+    COMMAND=$(perl -ne '
+        /^\#!\s*(\/\S+)(
+            \s+\+x\s*$|(\s+\+\w+)x|
+            '${REMOVE_ERROR_FLAG_PL-}'
+            \s*$
+        )/x and print($1, $3); exit
+    ' $RUN_FILE)
+
+    SLURM_JOB_NUM_NODES=$(perl -ne 'if(/^\s*#SBATCH\s+(--nodes|-N)(=|\s+)(\d+)/) {print($3); exit}' $RUN_FILE)
+    SLURM_NODELIST="n[1-$SLURM_JOB_NUM_NODES]"
+    # SLURM_JOB_CPUS_PER_NODE is defined above
+    export SLURM_JOB_NUM_NODES SLURM_NODELIST SLURM_JOB_CPUS_PER_NODE
+
+    if [ "x$RESTART" != x ]
+    # Try to mimic restart logic
+    then
+        restart=".$RESTART."
+        export restart
+    fi
+
+    if [ "x$RESTART" = xtrue ]
+    # Also, create date file for mkexp based scripts
+    then
+        eval "$(perl -lne '/^\s*(?:export\s)?\s*(
+            EXPNAME |
+            initial_date
+        )(=.*)$/x and print($1, $2)' $RUN_FILE)"
+        echo "$initial_date" > $SCRIPT_DIR/$EXPNAME.date
+    fi
+
+    echo "Running '$RUN_SCRIPT'" >&2
+
+    ${COMMAND:-/bin/sh} -x $RUN_FILE > $LOG_FILE 2>&1
+
+    echo "Generating configuration" >&2
+
+    eval "$(perl -lne '/^(?:\d{4,}-\d\d-\d\dT\d\d:\d\d:\d\d(?:.\d+)?:\ )?\+\ \s*(
+        EXPNAME|
+        (?:start|end|initial|final)_date|
+        restart_interval|
+        (?:atmos|ocean)_(?:gridID|refinement)|
+        (?:rad|atm|oce|coupling)TimeStep
+    )(=.*)$/x and print($1, $2)' $LOG_FILE)"
+
+    eval "$(perl -lne '
+        /_(\d{4})_(R\d\dB\d\d)_.* icon_grid_G.nc$/ and
+            print("atmos_gridID=$1\natmos_refinement=$2");
+        /_(\d{4})_(R\d\dB\d\d)_.* icon_grid_O.nc$/ and
+            print("ocean_gridID=$1\nocean_refinement=$2");
+    ' $LOG_FILE)"
+
+    cat << EOF
+$([ "$RUN_SCRIPT_BASE" != "$EXPNAME" ] && echo EXP_ID = $EXPNAME)
+EXP_TYPE = ${EXP_TYPE:-DEFAULT}
+ENVIRONMENT = ${ENVIRONMENT:-levante}
+
+DATA_DIR = ${DATA_DIR-${DATA_BASE_DIR-$MODEL_BASE_DIR}/experiments/\$EXP_ID}
+
+INTERVAL = $restart_interval
+
+${atmTimeStep:+ATMO_TIME_STEP = $atmTimeStep}
+${radTimeStep:+ATMO_RADIATION_TIME_STEP = $radTimeStep}
+${oceTimeStep:+OCEAN_TIME_STEP = $oceTimeStep}
+${couplingTimeStep:+COUPLER_TIME_STEP = $couplingTimeStep}
+EOF
+
+    INITIAL_DATE=${initial_date:-$start_date}
+    FINAL_DATE=${final_date:-$end_date}
+
+    $BINDIR/namelist2config -i "$EXPNAME" -a "$atmos_gridID" -A "$atmos_refinement" -o "$ocean_gridID" -O "$ocean_refinement" -I "$INITIAL_DATE" -F "$FINAL_DATE" $LOG_FILE
+###     i => 'EXP_ID',
+###     a => 'ATMO_GRID_ID',
+###     o => 'OCEAN_GRID_ID',
+###     A => 'ATMO_GRID_TYPE',
+###     O => 'OCEAN_GRID_TYPE',
+###     I => 'INITIAL_DATE',
+###     F => 'FINAL_DATE',
+
+    $BINDIR/files2config -x -i "$EXPNAME" -a "$atmos_gridID" -A "$atmos_refinement" -o "$ocean_gridID" -O "$ocean_refinement" $LOG_FILE
+###     i => 'EXP_ID',
+###     a => 'ATMO_GRID_ID',
+###     o => 'OCEAN_GRID_ID',
+###     A => 'ATMO_GRID_TYPE',
+###     O => 'OCEAN_GRID_TYPE',
+
+    if $WITH_INTAKE
+    then
+        cat << EOF
+[jobs]
+EOF
+        $INTAKE_ONLY && echo "  .remove = run_start, run, post, mon_index, mon"
+        cat << EOF
+  [[intake]]
+    url = \$EXP_ID.json
+EOF
+    fi
+
+    rm -f dict.$EXPNAME coupling_$EXPNAME.xml exp.$EXPNAME.run.status exp.$EXPNAME.run.final_status
+
+done # for RUN_SCRIPT

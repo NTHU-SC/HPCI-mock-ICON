@@ -1,0 +1,39 @@
+version = 1
+
+[[annotations]]
+path = [
+  "src/*.c",
+  "src/*.h",
+  "src/tixi.f90",
+  "src/tixi_version.h.in",
+]
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "Readme.md"
+SPDX-FileCopyrightText = "2025 DWD, MPI-M, DKRZ, KIT, ETH, MeteoSwiss"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = "**/Makefile.in"
+SPDX-License-Identifier = "FSFULLRWD"
+
+[[annotations]]
+path = "aclocal.m4"
+SPDX-License-Identifier = "FSFULLR"
+
+[[annotations]]
+path = [
+  "config/compile",
+  "config/depcomp",
+  "config/missing",
+]
+SPDX-License-Identifier = "GPL-2.0-or-later WITH Autoconf-exception-generic"
+
+[[annotations]]
+path = "config/install-sh"
+SPDX-License-Identifier = "X11-distribute-modifications-variant"
+
+[[annotations]]
+path = ["configure"]
+SPDX-License-Identifier = "FSFUL"

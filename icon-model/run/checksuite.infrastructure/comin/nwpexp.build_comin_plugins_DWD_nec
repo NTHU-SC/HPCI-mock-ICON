@@ -1,0 +1,26 @@
+# ICON
+#
+# ---------------------------------------------------------------
+# Copyright (C) 2004-2026, DWD, MPI-M, DKRZ, KIT, ETH, MeteoSwiss
+# Contact information: icon-model.org
+# See AUTHORS.TXT for a list of authors
+# See LICENSES/ for license information
+# SPDX-License-Identifier: BSD-3-Clause
+# ---------------------------------------------------------------
+#
+#
+# Pre-test script for ComIn plugins
+#
+# This script is run prior to the actual test jobs that utilize ComIn plugins.
+# It builds the example plugins for the DWD NEC platform, as well as the vector hosts and the vector engine.
+
+set -ex
+
+for builddir in "${PBS_O_WORKDIR}/../host" "${PBS_O_WORKDIR}/../vector"; do
+  (
+    cd "${builddir}"
+    eval "set +x; $(make env) set -x"
+    cmake -DCOMIN_ENABLE_EXAMPLES=ON externals/comin/build
+    make -C externals/comin/build --jobs=24 --keep-going --no-print-directory --output-sync=target VERBOSE=1
+  )
+done

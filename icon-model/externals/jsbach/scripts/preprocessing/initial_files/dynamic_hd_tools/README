@@ -1,0 +1,5 @@
+The code here has been separated out from the main Dynamic HD repository and had been
+used as submodule within git in previous versions to facilitate keeping it private.
+
+It was now copied from
+/home/mpim/m300468/workspace/Dynamic_HD_Code/Dynamic_HD_bash_scripts/parameter_generation_scripts

@@ -1,0 +1,11 @@
+# Copyright (c) 2013-2024 MPI-M, Luis Kornblueh, Rahul Sinha and DWD, Florian Prill. All rights reserved.
+#
+# SPDX-License-Identifier: CC0-1.0
+#
+
+indent=2
+whitespace=2
+# The following case argument is ignored by all existing releases of fprettify
+# and must be provided on the command line
+# (see https://github.com/fortran-lang/fprettify/commit/cb254022c2034ad3b8f744f4dad1bf5b7438815d):
+case=[2, 2, 2, 1]

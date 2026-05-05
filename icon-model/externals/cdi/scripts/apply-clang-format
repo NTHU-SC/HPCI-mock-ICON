@@ -1,0 +1,9 @@
+#! /bin/bash
+set -eu
+set -o pipefail
+find src app interfaces tests examples \
+  \( -name '*.[ch]' -o -name '*.[ch]pp' \) -a \
+  ! -path 'interfaces/python/cdi_wrapper.cpp' -a \
+  ! -path 'interfaces/ruby/cdi_wrapper.cpp' -a \
+  ! -path 'src/cdilib.c' \
+    -exec clang-format -i \{\} +

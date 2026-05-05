@@ -1,0 +1,71 @@
+#!@SHELL@
+
+# Copyright (c) 2024 The YAC Authors
+#
+# SPDX-License-Identifier: CC0-1.0
+
+set -e
+
+@TEST_MPI_FALSE@exit 77
+@ENABLE_UTILS_FALSE@exit 77
+@HAVE_NETCDF_FALSE@exit 77
+
+COMP_WEIGHTS=@top_builddir@/tools/yac_compute_weights.x
+EXODUS_GRID_FILE=exodus_grid_file.nc
+ICON_GRID_FILE=@top_builddir@/grids/icon_grid_0030_R02B03_G.nc
+SCRIP_GRID_NAME=scrip
+SCRIP_GRID_FILE=${SCRIP_GRID_NAME}_grids.nc
+SCRIP_MASK_FILE=${SCRIP_GRID_NAME}_masks.nc
+WEIGHT_FILE=test_compute_weights_result.nc
+DEBUG_GRID_FILE=test_compute_weights_grids.nc
+
+./gen_dummy_grids.x \
+  $EXODUS_GRID_FILE $SCRIP_GRID_NAME $SCRIP_GRID_FILE $SCRIP_MASK_FILE
+
+@MPI_LAUNCH@ -n 4 \
+  $COMP_WEIGHTS \
+  -s exodus,$EXODUS_GRID_FILE,exodus,gc \
+  -t reg2d,reg2d,20,10,0,20,80,90 \
+  -o $WEIGHT_FILE \
+  -T
+
+rm -f $WEIGHT_FILE
+
+@MPI_LAUNCH@ -n 4 \
+  $COMP_WEIGHTS \
+  -t reg2d,reg2d,180,90,0,360,-90,90 \
+  -s exodus,$EXODUS_GRID_FILE,exodus,GC \
+  -o $WEIGHT_FILE \
+  -T
+
+rm -f $WEIGHT_FILE
+
+@MPI_LAUNCH@ -n 4 \
+  $COMP_WEIGHTS \
+  -s icon,$ICON_GRID_FILE,icon \
+  -t scrip,$SCRIP_GRID_FILE,$SCRIP_GRID_NAME,GC,$SCRIP_MASK_FILE \
+  -o $WEIGHT_FILE \
+  -i "[\"nnn\"]"
+
+rm -f $WEIGHT_FILE
+
+@MPI_LAUNCH@ -n 4 \
+  $COMP_WEIGHTS \
+  -s scrip,$SCRIP_GRID_FILE,$SCRIP_GRID_NAME,ll,$SCRIP_MASK_FILE \
+  -t reg2drot,reg2drot,20,10,0,20,80,90,180,0 \
+  -o $WEIGHT_FILE \
+  -i "[\"average\"]" \
+  -d $DEBUG_GRID_FILE
+
+rm -f $WEIGHT_FILE
+
+@MPI_LAUNCH@ -n 4 \
+  $COMP_WEIGHTS \
+  -s reg2d,source_grid,180,90,0,360,-90,90 \
+  -t reg2d,target_grid,180,90,0,360,-90,90 \
+  -o $WEIGHT_FILE \
+  -i "[\"average\"]"
+
+rm -f $WEIGHT_FILE
+
+rm -f $EXODUS_GRID_FILE $SCRIP_GRID_FILE $SCRIP_MASK_FILE $DEBUG_GRID_FILE

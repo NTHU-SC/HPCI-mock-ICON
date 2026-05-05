@@ -1,0 +1,48 @@
+#!@SHELL@
+# Copyright (c) 2024 The YAC Authors
+#
+# SPDX-License-Identifier: CC0-1.0
+
+# -*- python -*-
+
+""":"
+@TEST_MPI_FALSE@exit 77
+@PYTHON@ -c 'import mpi4py' || exit 77
+
+PYTHONPATH="@abs_top_builddir@/python:$PYTHONPATH"
+export PYTHONPATH
+
+exec @MPI_LAUNCH@ -n 2 @PYTHON@ "$0"
+":"""
+
+import sys
+import numpy as np
+from datetime import timedelta
+
+from yac import YAC
+from yac.examples import Driver, NoiseGenerator, Statistics
+
+yac = YAC(default_instance=True)
+
+driver = Driver(
+    start="2020-01-01T00:00", end="2020-01-02T00:00", multithreading=True
+)
+
+rank = yac.rank
+
+if rank == 0:
+    driver.run(NoiseGenerator(timestep="PT1H"))
+elif rank == 1:
+    driver.run(
+        Statistics(
+            variables=[("noisegenerator", "noise_grid", "noise")],
+            comp_name="statistics_global",
+            grid_name="stat_grid_global",
+        ),
+        Statistics(
+            variables=[("noisegenerator", "noise_grid", "noise")],
+            comp_name="statistics_europe",
+            grid_name="stat_grid_europe",
+            bounds = [34*np.pi/180, 70*np.pi/180, -16*np.pi/180, 42*np.pi/180]
+        ),
+    )

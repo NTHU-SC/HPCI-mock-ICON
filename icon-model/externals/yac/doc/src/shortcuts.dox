@@ -1,0 +1,15 @@
+# Copyright (c) 2025 The YAC Authors
+#
+# SPDX-License-Identifier: CC-BY-4.0
+
+/**
+ * \page shortcuts Shortcuts
+
+This page collects shortcuts to frequently used pages:
+
+- \ref usage
+- \ref reference
+- \ref yaml_file
+- \ref interp_methods
+
+*/

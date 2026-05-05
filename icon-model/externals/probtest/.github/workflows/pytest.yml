@@ -1,0 +1,30 @@
+name: Run Pytest in probtest
+
+on: [push]
+
+jobs:
+  probtest-pytest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.10.8
+    - uses: conda-incubator/setup-miniconda@v2
+      with:
+        miniconda-version: "latest"
+        channels: conda-forge
+        channel-priority: flexible
+        show-channel-urls: true
+    - name: Create env from pinned environment
+      run: |
+        ./setup_env.sh -n probtest
+    - name: Run Pytest
+      env:
+        TZ: Europe/Zurich
+      run: |
+        conda run --name probtest pytest -v -s --cov --cov-report=term tests/

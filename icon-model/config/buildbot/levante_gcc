@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# ICON
+#
+# ------------------------------------------
+# Copyright (C) 2004-2026, DWD, MPI-M, DKRZ, KIT, ETH, MeteoSwiss
+# Contact information: icon-model.org
+# See AUTHORS.TXT for a list of authors
+# See LICENSES/ for license information
+# SPDX-License-Identifier: BSD-3-Clause
+# ------------------------------------------
+
+set -eu
+
+unset CDPATH
+script_dir=$(cd "$(dirname "$0")"; pwd)
+icon_dir=$(cd "${script_dir}/../.."; pwd)
+
+if test -n "${BB_NAME-}"; then
+  job_count=${SLURM_NTASKS:-22}
+  set MPI_LAUNCH='srun --exclusive'
+else
+  job_count=8
+  # Do not override arguments set in the wrapper:
+  set dummy; shift
+fi
+
+unset MAKEFLAGS
+makeflags="--jobs=${job_count} --no-print-directory --output-sync=target V=1"
+
+set -x
+
+${icon_dir}/config/dkrz/levante.gcc --disable-openmp --enable-yaxt --enable-waves --enable-bundled-python=yac,comin,mtime --enable-testbed --enable-concurrent-mpi-tests --enable-ragnarok PYTHON='/work/mh0287/buildbot/venv/bin/python3' "$@"
+
+make ${makeflags}
+
+if test -n "${BB_NAME-}"; then
+  "${icon_dir}/scripts/buildbot_scripts/build_checks/check_depgen_warnings.sh"
+  "${icon_dir}/scripts/buildbot_scripts/build_checks/check_remake.sh"
+  "${icon_dir}/scripts/buildbot_scripts/build_checks/check_git_untracked.sh"
+fi

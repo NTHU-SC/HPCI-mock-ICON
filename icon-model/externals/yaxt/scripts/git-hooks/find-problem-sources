@@ -1,0 +1,277 @@
+#! /usr/bin/env perl
+#
+# find-problem-sources --- detect source files not conforming to our
+#                          project expectations
+#
+# Copyright  (C)  2022  Thomas Jahns <jahns@dkrz.de>
+#
+# Version: 1.0
+# Author: Thomas Jahns <jahns@dkrz.de>
+# Keywords: check source file contents
+# Maintainer: Thomas Jahns <jahns@dkrz.de>
+# URL: https://swprojects.dkrz.de/redmine/projects/scales-ppm
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are  permitted provided that the following conditions are
+# met:
+#
+# Redistributions of source code must retain the above copyright notice,
+# this list of conditions and the following disclaimer.
+#
+# Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+# Neither the name of the DKRZ GmbH nor the names of its contributors
+# may be used to endorse or promote products derived from this software
+# without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+use warnings;
+use strict;
+
+use Data::Dumper ();
+use File::Spec ();
+use File::Find ();
+use Getopt::Long ();
+
+
+sub sort_files_into_categories(@);
+sub init_patterns(;$);
+sub none_match(\@$);
+sub any_match(\@$);
+sub file_grep_n($$);
+
+my ($debug, $verbose) = (exists($ENV{'DEBUG'}) ? int($ENV{'DEBUG'}) : 0, 0);
+my (@c_files, @f90_files);
+my (%config);
+
+sub init_patterns(;$)
+{
+  my ($problem_patterns_fn, $problem_patterns_fh)
+      = (exists($_[0])?$_[0]:'scripts/git-hooks/non-problems.txt');
+  if (!open($problem_patterns_fh, '<', $problem_patterns_fn)) {
+    print STDERR 'could not open configuration file ', $problem_patterns_fn,
+        "\n" if $debug || $verbose;
+    return;
+  }
+  my $active_section;
+  my %sections;
+  while (<$problem_patterns_fh>) {
+    chomp;
+    if (m{\[(\w+)\]}) {
+      $sections{$1} = [];
+      $active_section = \@{$sections{$1}};
+    } elsif ($_ ne '') {
+      push(@$active_section, $_);
+    }
+  }
+  foreach my $section_key (keys %sections) {
+    if (@{$sections{$section_key}} > 0) {
+      $config{$section_key}
+          = [ map({ qr{$_} } @{$sections{$section_key}}) ];
+    }
+  }
+  foreach my $section_key ('ignore_global', 'ignore_fc_defs_problem',
+                           'ignore_config_h_problem',
+                           'ignore_license_doc_header',
+                           'ignore_local_variable_footer') {
+    $config{$section_key} = [] unless (exists($config{$section_key}));
+  }
+}
+
+
+sub sort_files_into_categories(@)
+{
+  foreach my $filepath (grep { none_match(@{$config{'ignore_global'}}, $_) } (@_)) {
+    if ($filepath =~ m{\.[ch]$}) {
+      push(@c_files, $filepath);
+    } elsif ($filepath =~ m{\.f90$}) {
+      push(@f90_files, $filepath);
+    }
+  }
+}
+
+my @files;
+my ($edit_mode, $any_problem_found, $use_null_sep) = (1, 0, 0);
+
+init_patterns();
+parse_options();
+
+if (@ARGV == 0) {
+  my ($curdir, $dirsep) = (File::Spec->curdir(), File::Spec->catfile('', ''));
+  my $curdir_prefix = $curdir . $dirsep;
+  my $curdir_prefix_len = length($curdir_prefix);
+  File::Find::find(sub {
+                     if ($File::Find::name eq './.git') {
+                       $File::Find::prune = 1;
+                     } elsif ( -f $_) {
+                       push(@files, substr($File::Find::name,
+                                           $curdir_prefix_len))  } },
+                   $curdir);
+} elsif (@ARGV == 1 && $ARGV[0] eq '-') {
+  local $/ = $use_null_sep ? "\0" : $/;
+  while (<STDIN>) {
+    chomp;
+    push(@files, $_);
+  }
+} else {
+  @files = @ARGV;
+}
+
+print STDERR Data::Dumper->Dump([\%config], ['config'])
+    if ($debug or $verbose > 1);
+
+print STDERR Data::Dumper->Dump([\@files], ['files'])
+    if ($debug or $verbose > 1);
+
+sort_files_into_categories(@files);
+
+print STDERR Data::Dumper->Dump([\@c_files, \@f90_files],
+                                ['c_files', 'f90_files'])
+    if ($debug or $verbose > 1);
+
+{
+  my $config_h_re = qr{^# *include *["<]config.h[>"]$}o;
+  my $c_local_variables_re = qr{^ *\* *Local\ Variables:$}o;
+  my $f90_local_variables_re = qr{^! Local\ Variables:}o;
+  my $include_fc_defs_re = qr{^#include *["<]fc_feature_defs.inc[>"]$}o;
+  my @editor=split(' ', exists($ENV{'VISUAL'})?
+                       $ENV{'VISUAL'} : (exists($ENV{'EDITOR'}) ?
+                                         $ENV{'EDITOR'} : 'vi'));
+  for (my $i = 0; $i < @c_files; ++$i) {
+    my ($f, $fh) = $c_files[$i];
+    my $problem_found=0;
+    my $f_ = $f;
+    if (substr($f, -2) eq '.c'
+            && none_match(@{$config{'ignore_config_h_problem'}}, $f)
+            && ! file_grep_n($config_h_re, $f_)) {
+      print STDERR $f, ' does not contain include of config.h!', "\n";
+      $problem_found=1;
+    }
+    $f =~ qr{[^/]*$};
+    my $basename_f = $&;
+    if (none_match(@{$config{'ignore_license_doc_header'}}, $f)
+            && !file_grep_n(qr{\* *[@\\]file $basename_f}, $f_)) {
+      print STDERR $f, ' contains no/malformed license/documentation header!',
+          "\n";
+      $problem_found=1;
+    }
+    if (none_match(@{$config{'ignore_local_variable_footer'}}, $f)
+            && !file_grep_n($c_local_variables_re, $f_)) {
+      print STDERR $f, ' contains no/malformed local variable footer!',
+          "\n";
+      $problem_found=1;
+    }
+    if ($problem_found && $edit_mode) {
+      print(STDERR join(' ', @editor, $f), "\n") if ($debug > 1);
+      system(@editor, $f);
+      --$i;
+    }
+    $any_problem_found |= $problem_found;
+  }
+
+  for (my $i = 0; $i < @f90_files; ++$i) {
+    my ($f, $fh) = $f90_files[$i];
+    my $problem_found=0;
+    my $f_ = $f;
+    if (none_match(@{$config{'ignore_fc_defs_problem'}}, $f)
+            && ! file_grep_n($include_fc_defs_re, $f_)) {
+      print STDERR $f, ' does not contain include of fc_feature_defs.inc!',
+          "\n";
+      $problem_found=1;
+    }
+    $f =~ qr{[^/]*$};
+    my $basename_f = $&;
+    if (! file_grep_n(qr{![!>] *[@\\]file $basename_f}, $f_)) {
+      print STDERR $f, ' contains no/malformed license/documentation header!',
+          "\n";
+      $problem_found=1;
+    }
+    if (! file_grep_n($f90_local_variables_re, $f_)) {
+      print STDERR $f, ' contains no/malformed local variable footer!',
+          "\n";
+      $problem_found=1;
+    }
+    if ($problem_found && $edit_mode) {
+      print(STDERR join(' ', @editor, $f), "\n") if ($debug > 1);
+      system(@editor, $f);
+      --$i;
+    }
+    $any_problem_found |= $problem_found;
+  }
+}
+
+exit($any_problem_found > 0 ? 1 : 0);
+
+
+sub any_match(\@$)
+{
+  my ($patterns, $fn) = @_;
+  foreach my $pat (@$patterns) {
+    return 1 if ($fn =~ $pat);
+  }
+  return 0;
+}
+
+sub none_match(\@$)
+{
+  return !any_match(@{$_[0]}, $_[1]);
+}
+
+sub file_grep_n($$)
+{
+  my ($regex, $file) = ($_[0], \$_[1]);
+  if (!ref($$file)) {
+    my $fh;
+    open($fh, '<', $$file) or die('Cannot open ', $$file, ": $!\n");
+    my (@contents) = <$fh>;
+    $$file = { 'name' => $$file, 'contents' => \@contents };
+  }
+  my @matches = grep { m{$regex} } (@{$$file->{'contents'}});
+  print STDERR scalar(@matches), " matches of ", $regex,
+      " in ", scalar(@{$$file->{'contents'}}),
+      " lines of $$file->{'name'}.\n" if ($debug > 2);
+  return @matches;
+}
+
+sub parse_options
+{
+  my $optionParser = new Getopt::Long::Parser;
+  my ($help, $usage);
+  my $result
+      = $optionParser->getoptions('debug+' => \$debug,
+                                  'help|?!' => \$help,
+                                  'usage!' => \$usage,
+                                  'null|0!' => \$use_null_sep,
+                                  'verbose+' => \$verbose,
+                                  'edit-mode!' => \$edit_mode,
+                                 );
+  if($help or $usage)
+  {
+    pod2usage( {
+      '-msg' => "",
+      '-exitval' => 0,
+      '-verbose' => 1
+     });
+  }
+}
+
+#
+# Local Variables:
+# mode: cperl
+# cperl-indent-level: 2
+# license-project-url: "https://swprojects.dkrz.de/redmine/projects/scales-ppm"
+# license-default: "bsd"
+# End:

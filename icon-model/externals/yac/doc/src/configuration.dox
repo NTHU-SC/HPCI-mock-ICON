@@ -1,0 +1,562 @@
+# Copyright (c) 2024 The YAC Authors
+#
+# SPDX-License-Identifier: CC-BY-4.0
+
+/**
+ * \page installing_yac Configuration, Building and Installation for Different Systems
+
+\tableofcontents
+
+\section building_yac_req Requirements
+
+  - MPI
+  - LAPACK
+    - If no external interface is provided (e.g. MKL, ATLAS, ...) the bundled
+      (very limited) version of CLAPACK library is used.
+  - <a href="https://github.com/pantoniou/libfyaml">libfyaml</a>
+    - Only required for \ref yac_lib_mci.
+  - <a href="https://gitlab.dkrz.de/dkrz-sw/yaxt">yaxt</a>
+    (see \subpage installing_yaxt)
+  - <a href="https://www.unidata.ucar.edu/software/netcdf/">NetCDF</a>
+    - Not mandatory, but without it features like writing or
+      reading weight files will be deactivated.
+  - <a href="https://gitlab.dkrz.de/icon-libraries/libmtime">libmtime</a>
+    - A bundled version is included in YAC, but an external one can be
+      specified.
+    - Only required for \ref yac_lib_mci.
+  - Autoconf
+    - Only required for configuration if you are not using a release (e.g., develop version).
+  - Doxygen (recommended version 1.11.0, check `doxygen --version`)
+    - Only required if you want to build the documentation via `doxygen doc/Doxyfile`
+  - Graphviz
+    - Only required if you want to build the documentation
+
+\section getting_yac Getting YAC
+
+Clone \ref availability "public repository of YAC".
+
+\subsection getting_yac_whole Entire repository
+
+Get the entire repository and optionally check out a specific release
+
+\code
+git clone https://gitlab.dkrz.de/dkrz-sw/yac.git
+git -C yac checkout <release_tag>
+\endcode
+
+\subsection getting_yac_tag Specific Release
+
+Alternatively get only the code for a specific release.
+
+\code
+git clone --depth 1 --branch <release_tag> https://gitlab.dkrz.de/dkrz-sw/yac.git
+\endcode
+
+\section building_yac Building YAC
+
+After cloning the repositotory the folder `yac` contains all source code and
+other files that belong to the software YAC.
+
+For building YAC it is recommended to use a separate directory. The location is
+arbitrary. To create the build directory inside the folder `yac` execute the
+following commands:
+
+\code
+cd yac
+mkdir build
+\endcode
+
+In the remainder of this section the folder `yac` will be referred to as
+`<yac_repo_dir>` and the folder `<yac_repo_dir>/build` will be referred to as
+`<yac_build_dir>`.
+
+Unless explicitly specified when configuring the build directory, all
+\ref yac_libs "YAC libraries", unit tests, examples, and
+\ref yac_tools will be built.
+
+\subsection building_yac_levante Building on HPC System at DKRZ (gcc 11.2.0, OpenMPI 4.1.2)
+
+Information about the HPC-system Levante at DKRZ can be found
+<a href="https://www.dkrz.de/en/systems/hpc/hlre-4-levante?set_language=en">here</a>.
+
+Load toolchain
+
+\code
+module purge
+module load \
+        gcc/11.2.0-gcc-11.2.0 \
+        openmpi/4.1.2-gcc-11.2.0 \
+        netcdf-c/4.8.1-openmpi-4.1.2-gcc-11.2.0 \
+        hdf5/1.12.1-openmpi-4.1.2-gcc-11.2.0 \
+        intel-oneapi-mkl/2022.0.1-gcc-11.2.0
+\endcode
+
+YAC releases already contain a configure-script, if another YAC version
+is used (e.g. master-branch), it has to be generated.
+
+\code
+cd <yac_repo_dir>
+test -f ./configure || ./autogen.sh
+\endcode
+
+Configure build directory
+
+\code
+cd <yac_build_dir>
+<yac_repo_dir>/configure \
+        CC=mpicc \
+        FC=mpif90 \
+        --disable-mpi-checks \
+        --disable-silent-rules \
+        --enable-concurrent-mpi-tests \
+        --enable-python-bindings \
+        --with-fyaml-root=/sw/spack-levante/libfyaml-0.7.12-fvbhgo \
+        --with-netcdf-root=/sw/spack-levante/netcdf-c-4.8.1-6qheqr \
+        --with-yaxt-root=<yaxt_inst_dir> \
+        MKL_CFLAGS="`pkg-config --cflags mkl-static-lp64-seq`" \
+        MKL_CLIBS="`pkg-config --libs mkl-static-lp64-seq`" \
+        --prefix=<yac_inst_dir>
+\endcode
+
+Build
+
+\code
+cd <yac_build_dir>
+make -j8
+\endcode
+
+Run tests
+
+\code
+cd <yac_build_dir>
+make -j8 check
+\endcode
+
+Install
+
+\code
+cd <yac_build_dir>
+make install
+\endcode
+
+\subsection building_yac_macOS Building on macOS 13.1 (Ventura) Apple M1 (homebrew gcc 12.2.0, OpenMPI 4.1.4, netcdf 4.9.0)
+
+Generate configure-script in source directory (if required)
+
+\code
+cd <yac_repo_dir>
+test -f ./configure || ./autogen.sh
+\endcode
+
+Configure build directory (with external libmtime and LAPACK)
+
+\code
+cd <yac_build_dir>
+<yac_repo_dir>/configure \
+        --with-netcdf-root=/opt/homebrew \
+        --with-fyaml-root=/opt/homebrew \
+        --with-yaxt-root=<yaxt_inst_dir> \
+        --disable-lib-only \
+        --without-external-mtime \
+        --enable-silent-rules \
+        CC=/opt/homebrew/bin/mpicc \
+        FC=/opt/homebrew/bin/mpif90 \
+        CFLAGS="-g -Wall" \
+        FCFLAGS="-g -Wall -fimplicit-none" \
+        MPI_LAUNCH="$(which mpirun) --map-by socket:OVERSUBSCRIBE"
+\endcode
+
+Build
+
+\code
+cd <yac_build_dir>
+make -j8
+\endcode
+
+Run tests
+
+\code
+cd <yac_build_dir>
+make -j8 check
+\endcode
+
+Install
+
+\code
+cd <yac_build_dir>
+make install
+\endcode
+
+\subsection building_yac_ubuntu Building on Ubuntu 24.04 (OpenMPI 4.1.6)
+
+\warning
+There is a bug with OpenMPI's MPMD on Ubuntu 25.04. Therefore, the use of
+Ubuntu 25.04 is **not recommended** with YAC. Refer to
+[github.com/open-mpi/ompi/issues/13303](https://github.com/open-mpi/ompi/issues/13303)
+for further information.
+
+First, install some basic dependencies via the package manager:
+
+\code
+apt install build-essential git libtool openmpi-bin libopenmpi-dev \
+            libnetcdf-dev libfyaml-dev
+\endcode
+
+If you want to `--enable-python-bindings` (and test them) you also need:
+
+\code
+apt install libpython3-dev python3-setuptools python3-numpy python3-mpi4py \
+            python3-netcdf4 python3-matplotlib python3-isodate cython3
+\endcode
+
+\note
+`uxarray` does not offer installation via `apt`. This will lead to some tests
+being skipped. If you still want to run these tests create a `venv` with the
+option `--system-site-packages` and install `uxarray` using `pip`:
+```sh
+cd <yac_build_dir>
+python3 -m venv --system-site-packages tests/python/.venv
+source tests/python/.venv/bin/activate
+pip install uxarray
+```
+Make sure to activate the venv before running the tests.
+
+If you want to build the documentation you also need:
+
+\code
+apt install doxygen graphviz
+\endcode
+
+Please consider installing [Doxygen 11.1.0](https://github.com/doxygen/doxygen/releases/tag/Release_1_11_0)
+if you experience issues in the documentation.
+
+Generate configure-script in source directory
+
+\code
+cd <yac_repo_dir>
+test -f ./configure || ./autogen.sh
+\endcode
+
+Configure build directory (with external libmtime and LAPACK)
+
+\code
+cd <yac_build_dir>
+<yac_repo_dir>/configure \
+        CC=mpicc \
+        FC=mpif90 \
+        --enable-mpi-checks \
+        --enable-silent-rules \
+        --enable-concurrent-mpi-tests \
+        --enable-python-bindings \
+        --with-yaxt-root=<yaxt_inst_dir> \
+        CFLAGS="-g -Wall" \
+        FCFLAGS="-g -Wall -fimplicit-none" \
+        MPI_LAUNCH="mpirun --oversubscribe" \
+        --prefix=<yac_inst_dir>
+\endcode
+
+Build
+
+\code
+cd <yac_build_dir>
+make -j8
+\endcode
+
+Run tests
+
+\code
+cd <yac_build_dir>
+make -j8 check
+\endcode
+
+Install
+
+\code
+cd <yac_build_dir>
+make install
+\endcode
+
+\note
+Instead of setting `MPI_LAUNCH` during configuration above, you can configure your MPI to use the `--oversubscribe` option per default.
+- OpenMPI 4 and earlier: Create the file `$HOME/.openmpi/mca-params.conf` and insert the following lines:
+```
+rmaps_base_oversubscribe=1
+orte_create_session_dirs=1
+```
+- OpenMPI 5: Create the file `$HOME/.prte/mca-params.conf` and insert the line:
+```
+rmaps_default_mapping_policy = :oversubscribe
+```
+
+\subsubsection building_yac_legacy_ubuntu Building on Older Ubuntu Versions
+
+\note
+Information in this section may be outdated but still useful if you have to use
+an older version of Ubuntu. Generally, it is recommended to use a recent OS
+version.
+
+It is also possible to build YAC on older Ubuntu versions by following the
+instructions above. However, you might have to build some dependencies from
+source. The following versions have been used to build YAC:
+
+\paragraph building_yac_ubuntu_20_04 Ubuntu 20.04
+
+You will have to build `libfyaml-dev` from source because it is not provided
+in the package repositories:
+
+1. Please clone [github.com/pantoniou/libfyaml](https://github.com/pantoniou/libfyaml) and
+  follow the instructions for building and installation. It is recommended to
+  install `libfyaml` into a user-specified directory `<libfyaml_inst_dir>`
+  by using the `--prefix` option: `./configure --prefix=<libfyaml_inst_dir>`
+2. The remaining steps are almost identical as for a recent Ubuntu. Please add the
+  option `./configure ... --with-fyaml-root=<libfyaml_inst_dir> ...` when
+  configuring the build process of YAC to make sure `libfyaml` can be found
+  during the YAC build.
+
+\section building_yac_examples Examples
+
+By default together with the YAC library a couple of examples will be built.
+They can be found in:
+
+`<yac_build_dir>/examples/<example_name>`
+
+Additional information on each example is available in:
+
+`<yac_repo_dir>/examples/<example_name>/README`
+
+\section linking_yac Linking with YAC
+
+Using the
+<a href="https://www.freedesktop.org/wiki/Software/pkg-config/">pkg-config</a>
+tool, the variables for linking YAC to your program can be extracted.
+
+Set search path for pkg-config
+
+\code
+export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:<yac_inst_dir>/lib/pkgconfig
+\endcode
+
+Getting Parameters for C-Interface
+
+\code
+CC=`pkg-config --variable=cc yac-mci`
+YAC_CFLAGS=`pkg-config --variable=cflags yac-mci`
+YAC_CLIBS=`pkg-config --variable=clibs yac-mci`
+\endcode
+
+Getting Parameters for Fortran-Interface
+
+\code
+FC=`pkg-config --variable=fc yac-mci`
+FCFLAGS=`pkg-config --variable=fcflags yac-mci`
+FCLIBS=`pkg-config --variable=fclibs yac-mci`
+\endcode
+*/
+
+/**
+ * \page installing_yaxt Installing yaxt
+
+\tableofcontents
+
+Yet Another eXchange Tool (yaxt) is a communication library, which is a
+requirement for building YAC.
+
+Dokumentation: <a href="https://dkrz-sw.gitlab-pages.dkrz.de/yaxt/">https://dkrz-sw.gitlab-pages.dkrz.de/yaxt/</a>
+
+Download: <a href="https://gitlab.dkrz.de/dkrz-sw/yaxt">https://gitlab.dkrz.de/dkrz-sw/yaxt</a>
+
+\section building_yaxt_req Requirements
+
+  - MPI
+
+\section getting_yaxt Getting yaxt
+
+Clone public repository of yaxt.
+
+\subsection getting_yaxt_whole Entire Repository
+
+Get the entire repository and optionally check out a specific release
+
+\code
+git clone https://gitlab.dkrz.de/dkrz-sw/yaxt.git
+git -C yaxt checkout <release_tag>
+\endcode
+
+\subsection getting_yaxt_tag Specific Release
+
+Alternatively get only the code for a specific release.
+
+\code
+git clone --depth 1 --branch <release_tag> https://gitlab.dkrz.de/dkrz-sw/yaxt.git
+\endcode
+
+\section building_yaxt Building yaxt
+
+After cloning the repository the folder `yaxt` contains all source code and
+other files that belong to the software yaxt.
+
+For building yaxt it is recommended to use a separate directory. The location is
+arbitrary. To create the build directory inside the folder `yaxt` execute the
+following commands:
+
+\code
+cd yaxt
+mkdir build
+\endcode
+
+In the remainder of this section the folder `yaxt` will be referred to as
+`<yaxt_repo_dir>` and the folder `<yaxt_repo_dir>/build` will be referred to as
+`<yaxt_build_dir>`.
+
+\subsection building_yaxt_levante Building on HPC System at DKRZ (gcc 11.2.0, OpenMPI 4.1.2)
+
+Information about the HPC-system Levante at DKRZ can be found
+<a href="https://www.dkrz.de/en/systems/hpc/hlre-4-levante?set_language=en">here</a>.
+
+Load toolchain
+
+\code
+module purge
+module load \
+        gcc/11.2.0-gcc-11.2.0 \
+        openmpi/4.1.2-gcc-11.2.0
+\endcode
+
+Generate configure-script in source directory
+
+\code
+cd <yaxt_repo_dir>
+./scripts/reconfigure
+\endcode
+
+Configure build directory
+
+\code
+cd <yaxt_build_dir>
+<yaxt_repo_dir>/configure \
+        CC=mpicc \
+        FC=mpif90 \
+        --prefix=<yaxt_inst_dir>
+\endcode
+
+Build
+
+\code
+cd <yaxt_build_dir>
+make -j8
+\endcode
+
+Run tests
+
+\code
+cd <yaxt_build_dir>
+make -j8 check
+\endcode
+
+Install
+
+\code
+cd <yaxt_build_dir>
+make install
+\endcode
+
+\subsection building_yaxt_macos Building on macOS 13.1 (Ventura) Apple M1 (homebrew gcc 12.2.0, OpenMPI 4.1.4, netcdf 4.9.0)
+
+Generate configure-script in source directory
+
+\code
+cd <yaxt_repo_dir>
+./scripts/reconfigure
+\endcode
+
+Configure build directory
+
+\code
+cd <yaxt_build_dir>
+<yaxt_repo_dir>/configure \
+  MPI_LAUNCH="$(which mpirun) --map-by socket:OVERSUBSCRIBE" \
+  --prefix=<yaxt_inst_dir> \
+  --disable-shared
+\endcode
+
+Build
+
+\code
+cd <yaxt_build_dir>
+make -j8
+\endcode
+
+Run tests
+
+\code
+cd <yaxt_build_dir>
+make -j8 check
+\endcode
+
+Install
+
+\code
+cd <yaxt_build_dir>
+make install
+\endcode
+
+\subsection building_yaxt_ubuntu Building on Ubuntu 24.04 / 25.04 (OpenMPI 4.1.6)
+
+First, install some basic dependencies via the package manager:
+
+\code
+apt install build-essential git libtool openmpi-bin libopenmpi-dev
+\endcode
+
+Generate configure-script in source directory
+
+\code
+cd <yaxt_repo_dir>
+./scripts/reconfigure
+\endcode
+
+Create a build directory and configure it
+
+\code
+mkdir <yaxt_build_dir>
+cd <yaxt_build_dir>
+<yaxt_repo_dir>/configure \
+  CC=mpicc \
+  FC=mpif90 \
+  MPI_LAUNCH="mpirun --oversubscribe" \
+  --prefix=<yaxt_inst_dir> \
+\endcode
+
+Build
+
+\code
+cd <yaxt_build_dir>
+make -j8
+\endcode
+
+Run tests
+
+\code
+cd <yaxt_build_dir>
+make -j8 check
+\endcode
+
+Install
+
+\code
+cd <yaxt_build_dir>
+make install
+\endcode
+
+\note
+Instead of setting `MPI_LAUNCH` during configuration above, you can configure your MPI to use the `--oversubscribe` option per default.
+- OpenMPI 4 and earlier: Create the file `$HOME/.openmpi/mca-params.conf` and insert the following lines:
+```
+rmaps_base_oversubscribe=1
+orte_create_session_dirs=1
+```
+- OpenMPI 5: Create the file `$HOME/.prte/mca-params.conf` and insert the line:
+```
+rmaps_default_mapping_policy = :oversubscribe
+```
+*/

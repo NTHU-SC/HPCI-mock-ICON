@@ -1,0 +1,54 @@
+# Copyright (c) 2024 The YAC Authors
+#
+# SPDX-License-Identifier: CC-BY-4.0
+#
+# Content partially generated with the assistance of ChatGPT.
+
+/**
+\page style_guide Style Guide
+
+\section style_intro Introduction
+This document defines the standard conventions used in code and documentation
+for this project to ensure consistency, readability, and maintainability.
+
+\section style_line_length Line Length
+- Limit all lines to a maximum of 80 characters.
+
+\section style_indentation Indentation
+- Use 2 spaces for indentation.
+- Do not use tabs under any circumstances.
+
+\section style_coding_conventions General Coding Conventions
+- Use the prefix `yac_` for exported symbols (`yac_c` for C, `yac_f` for 
+  Fortran).\n
+  <em>Example: `yac_cinit()`</em>.
+
+\subsection style_C_coding_conventions C
+- Use `snake_case` per default (for naming variables, functions...).
+- (optional) Use `CamelCase` for names of types.\n
+  <em>Example: `typedef struct struct_name MyStruct; MyStruct foo, bar;`</em>
+- (recommended) Use curly braces also for one-line `for`, `if`, etc.
+
+\subsection style_F_coding_conventions Fortran
+- Use lowercase for keywords such as `subroutine`, `implicit none`, etc.
+
+\section style_spelling Spelling Convention
+- The name of the software *YAC* is always written in
+  [all caps](https://en.wikipedia.org/wiki/All_caps). Depending on the context,
+  exceptions are allowed (e.g. conflicting coding conventions)
+- The name of the software *yaxt* is always written in lowercase. Depending on
+  the context, exceptions are allowed (e.g. conflicting coding conventions)
+- Use British English (BE) throughout general code and documentation.
+- Use American English (AE) only for naming routines and symbols related to
+  MPI, as MPI follows AE conventions.
+- For other commonly used terms (e.g. software packages) the spelling used on the 
+  respective documentation should be used. Another good reference is wikipedia. 
+  Here is a list (in alphabetical order) of terms that are used frequently: netCDF,
+  OASIS, ParaView, Python, SCRIP
+
+\section style_capitalization Capitalization
+- Titles of pages and sections etc. follow [title case](https://en.wikipedia.org/wiki/Title_case).
+
+\section style_whitespace Whitespace
+- Do not allow trailing whitespace at the end of any line.
+*/

@@ -1,0 +1,71 @@
+# Copyright (c) 2013-2024 MPI-M, Luis Kornblueh, Rahul Sinha and DWD, Florian Prill. All rights reserved.
+#
+# SPDX-License-Identifier: CC0-1.0
+#
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+        exclude: '^(contrib/.*|configure$)'
+      - id: trailing-whitespace
+        exclude: '^((LICENSES|contrib)/.*|src/mtime_iso8601\.c$)'
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v19.1.7
+    hooks:
+      - id: clang-format
+        # Exclude the automatically generated file:
+        exclude: ^src/mtime_iso8601\.c$
+  - repo: https://github.com/fortran-lang/fprettify
+    # We have to use the untagged version because there are no releases that
+    # support the case argument in the .fprettify.rc configuration file
+    # (see https://github.com/fortran-lang/fprettify/commit/cb254022c2034ad3b8f744f4dad1bf5b7438815d):
+    rev: cb254022c2034ad3b8f744f4dad1bf5b7438815d
+    hooks:
+      - id: fprettify
+        name: fprettify
+  - repo: https://github.com/cheshirekow/cmake-format-precommit
+    rev: v0.6.13
+    hooks:
+      - id: cmake-format
+      - id: cmake-format
+        name: cmake-format (templates)
+        types: [file]
+        files: \.cmake\.in$
+      - id: cmake-lint
+      - id: cmake-lint
+        name: cmake-lint (templates)
+        types: [file]
+        files: \.cmake\.in$
+  - repo: https://github.com/pycqa/isort
+    rev: 6.0.0
+    hooks:
+      - id: isort
+      - id: isort
+        name: isort (templates)
+        types_or: [file]
+        files: (python\.sh|\.py)\.in$
+  - repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 25.1.0
+    hooks:
+      - id: black
+      - id: black
+        name: black (templates)
+        types_or: [file]
+        files: (python\.sh|\.py)\.in$
+  - repo: https://github.com/csachs/pyproject-flake8
+    rev: v7.0.0
+    hooks:
+      - id: pyproject-flake8
+      - id: pyproject-flake8
+        name: pyproject-flake8 (templates)
+        types: [file]
+        files: (python\.sh|\.py)\.in$
+  - repo: https://github.com/fsfe/reuse-tool
+    rev: v5.0.2
+    hooks:
+      - id: reuse
+        stages: [manual]
+        always_run: true
+        verbose: true

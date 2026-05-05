@@ -1,0 +1,25 @@
+# CMake stage files:
+/**/CMakeFiles/*
+/**/_deps/*
+CMakeCache.txt
+CTestTestfile.cmake
+Makefile
+cmake_install.cmake
+iconmath-config-version.cmake
+iconmath-config.cmake
+iconmath-targets.cmake
+
+# Build stage files:
+*.L
+*.a
+*.dylib
+*.so
+install_manifest.txt
+/**/src/**/mod/*
+/**/test/fortran/*.mod
+/**/api/*
+iconmath_Tests
+
+# Test stage files:
+/**/Testing/*
+run_tests.f90

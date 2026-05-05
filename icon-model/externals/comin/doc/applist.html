@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="applist_styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+
+  <!--
+   ----------------------------------------------------
+     TABLE OF COMIN APPLICATIONS
+   ----------------------------------------------------
+   -->
+
+    <script>
+      const data = jsyaml.load(`
+  - name: simple_fortran
+    language: Fortran
+    type: Tutorial
+    author: ICON-Comin
+    year: 2024
+    description: None
+    url: https://gitlab.dkrz.de/icon-comin/comin/-/tree/master/plugins
+    status: active
+    cominversion: 0.2.0
+
+  - name: calc_water_column
+    language: Fortran
+    type: Tutorial
+    author: ICON-Comin
+    year: 2024
+    description: Simple diagnostic application, calculating the liquid water path, the ice water path, and the total water column.
+    url: https://gitlab.dkrz.de/icon-comin/comin/-/tree/master/plugins
+    status: active
+    cominversion: 0.2.0
+
+  - name: yaxt_fortran
+    language: Fortran
+    type: Tutorial
+    author: ICON-Comin
+    year: 2024
+    description: Example plugin to demonstrate the usage of the YAXT communication library.
+    url: https://gitlab.dkrz.de/icon-comin/comin/-/tree/master/plugins
+    status: active
+    cominversion: 0.2.0
+
+  - name: simple_c
+    language: C/C++
+    type: Tutorial
+    author: ICON-Comin
+    year: 2024
+    description: None
+    url: https://gitlab.dkrz.de/icon-comin/comin/-/tree/master/plugins
+    status: active
+    cominversion: 0.2.0
+
+  - name: yac_input
+    language: C/C++
+    type: Tutorial
+    author: ICON-Comin
+    year: 2024
+    description: Plugin written in C which encapsulates a YAC coupling inside a ComIn plugin.
+    url: https://gitlab.dkrz.de/icon-comin/comin/-/tree/master/plugins
+    status: active
+    cominversion: 0.2.0
+
+  - name: yaxt_c
+    language: C/C++
+    type: Tutorial
+    author: ICON-Comin
+    year: 2024
+    description: Plugin written in C to demonstrate using the YAXT communication library.
+    url: https://gitlab.dkrz.de/icon-comin/comin/-/tree/master/plugins
+    status: active
+    cominversion: 0.2.0
+
+  - name: simple_python_plugin
+    language: Python
+    type: Tutorial
+    author: ICON-Comin
+    year: 2024
+    description: None
+    url: https://gitlab.dkrz.de/icon-comin/comin/-/tree/master/plugins
+    status: active
+    cominversion: 0.2.0
+
+  - name: point_source
+    language: Python
+    type: Tutorial
+    author: ICON-Comin
+    year: 2024
+    description: Test plugin requesting a tracer that participates in ICON’s turbulence and convection scheme. This plugin also shows how a grid point search in Python using <a href="https://scipy.org/">SciPy</a> can be done.
+    url: https://gitlab.dkrz.de/icon-comin/comin/-/tree/master/plugins
+    status: active
+    cominversion: 0.2.0
+
+  - name: Hands-On Exercises
+    language: Python, Jupyter Notebooks
+    type: Tutorial
+    author: ICON-Comin
+    year: 2024
+    description: Example plugins including the use of matplotlib, mpi4py
+    url: https://gitlab.dkrz.de/icon-comin/comin-training-exercises
+    status: active
+    cominversion: 0.1.0
+
+  - name: MESSy Adapter
+    language: Fortran
+    type: Framework Adapter
+    author: DLR-IPA
+    year: 2024
+    description: Adapter for the Modular Earth Submodel System (MESSy)
+    url:
+    status: active
+    cominversion: 0.2.0
+
+  - name: Prometheus Exporter
+    language: C/C++
+    type: Visualization
+    author: DWD
+    year: 2023
+    description: Online monitoring within Grafana/Prometheus
+    url:
+    status: discontinued
+    cominversion: pre-0.1.0
+
+  - name: Catalyst Adapter
+    language: C/C++
+    type: Visualization
+    author: DKRZ
+    year: 2024
+    description: In situ visualization with Paraview/Catalyst
+    url: https://gitlab.dkrz.de/icon-comin/catalyst_adapter
+    status: active
+    cominversion:
+
+  - name: Solar Eclipse
+    language: Python
+    type: prognostic (prototype)
+    author: DWD
+    year: tbd.
+    description: considering solar eclipse in the insolation
+    url:
+    status: to be developed
+    cominversion:
+
+  - name: calc_pot_etp
+    language: Python
+    type: diagnostic
+    author: CLM / UDAG project
+    year: tbd.
+    description: Calculation of potential evapotranspiration
+    url:
+    status: to be developed
+    cominversion:
+
+  - name: cell tracking
+    language: Fortran
+    type: diagnostic
+    author: CLM / UDAG project
+    year: tbd.
+    description: cell tracking based on 5min precipitation output
+    url:
+    status: to be developed
+    cominversion:
+
+  - name: proimpact 5 min prec
+    language: Python
+    type: diagnostic
+    author: ProImpact / Felipe Navarrete
+    year: 2025
+    description: 5min precipitation diagnostic
+    url: https://github.com/felipehnn/proimpact_comin
+    status: active
+    cominversion: 0.3.0
+
+  - name: WindWaker
+    language: C++
+    type: Physics
+    author: DWD
+    year: 2025
+    description: Model wakes of offshore wind farms
+    url: https://gitlab.dkrz.de/b381588/windwaker
+    status: active
+    cominversion: 0.3.0
+      `)
+
+    const title_names = {
+          name        : 'Name',
+          language    : 'Programming Language',
+          type        : 'Type',
+          author      : 'Author',
+          year        : 'Year',
+          description : 'Description',
+          url         : 'URL',
+          status      : 'Status',
+          cominversion: 'ComIn version',
+      };
+    </script>
+  </head>
+
+  <!--
+   ----------------------------------------------------
+     JAVASCRIPT PART - DO NOT MODIFY BELOW THIS LINE!
+   ----------------------------------------------------
+   -->
+
+  <body>
+    <div id="tableContainer"></div>
+    <script>
+      // Function to create a table from the parsed YAML data
+      function createTable(data, header_mapping) {
+          if (!Array.isArray(data)) {
+              console.error('YAML data is not an array of objects');
+              return;
+          }
+
+          const keys = [...new Set(data.flatMap(Object.keys))];
+          let tableHTML = '<table id="myTable" class="styled-table"><thead><tr>';
+
+          // Create table header
+          keys.forEach(key => {
+              tableHTML += `<th>${header_mapping[key] || key}</th>`;
+          });
+          tableHTML += '</tr></thead>';
+
+          // Create table rows
+          const prekey  = { url : '<a class="styled-link" " href="' };
+          const postkey = { url : '"></a>' };
+          data.forEach(item => {
+              tableHTML += '<tr>';
+              keys.forEach(key => {
+                  tableHTML += `<td>${prekey[key] || ''}${item[key] || ''}${postkey[key] || ''}</td>`;
+              });
+              tableHTML += '</tr>';
+          });
+
+          tableHTML += '</table>';
+          document.getElementById('tableContainer').innerHTML = tableHTML;
+      }
+
+      function setupTable() {
+          createTable(data, title_names);
+
+          //  // fetch and parse the YAML file
+          //  // (variant when no CORS restriction applies:)
+          //  fetch('data.yaml')
+          //      .then(response => response.text())
+          //      .then(text => {
+          //          const data = jsyaml.load(text);
+          //          createTable(data);
+          //      })
+          //      .catch(error => console.error('Error loading YAML file:', error));
+
+          document.addEventListener('DOMContentLoaded', function() {
+              const table = document.getElementById('myTable');
+              const headers = table.querySelectorAll('thead th');
+              const tbody = table.querySelector('tbody');
+
+              headers.forEach(header => {
+                  header.addEventListener('click', () => {
+                      const column = header.cellIndex;
+                      const rows = Array.from(tbody.querySelectorAll('tr'));
+
+                      const isAscending = header.classList.contains('sorted-asc');
+
+                      rows.sort((a, b) => {
+                          const aValue = a.cells[column].textContent.trim();
+                          const bValue = b.cells[column].textContent.trim();
+                          return isAscending
+                              ? bValue.localeCompare(aValue, undefined, {numeric: true, sensitivity: 'base'})
+                              : aValue.localeCompare(bValue, undefined, {numeric: true, sensitivity: 'base'});
+                      });
+
+                      headers.forEach(h => h.classList.remove('sorted-asc', 'sorted-desc'));
+                      header.classList.toggle('sorted-asc', !isAscending);
+                      header.classList.toggle('sorted-desc', isAscending);
+
+                      tbody.append(...rows);
+                  });
+              });
+          });
+      }
+
+      setupTable(); // function to create a table from the parsed YAML data
+    </script>
+  </body>
+</html>

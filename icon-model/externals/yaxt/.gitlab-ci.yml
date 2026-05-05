@@ -1,0 +1,366 @@
+#run for all commits to the master branch and for merge requests
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: always
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+    - when: never
+
+# coverage:
+#   - generates the coverage report data
+# tests:
+#   - run_test_*: build and test yaxt
+#   - check_warning_*: checks output of run_test_* compiler outputs
+#     - fails if it contains warings -> pipeline can still run
+#       successfully, but with warning
+# documentation:
+#   - generate html doxygen documentation and html coverage report
+# publish
+#   - uploads html pages
+stages:
+  - tests
+  - coverage
+  - documentation
+  - publish
+
+include:
+  - project: 'anw_dienste/ci-templates'
+    file: '.slurm-ci.yml'
+
+.load_basic_modules: &load_basic_modules
+  - . /sw/etc/profile.levante
+  - export LANG=en_US.UTF-8
+  - module purge
+  - module load git python3
+
+.init_build:
+  extends:
+    - .default
+  variables:
+    PARTITION: shared
+    TASK_COUNT: 32
+    TIME_LIMIT: "15:00"
+    ACCOUNT: k20200
+    SCHEDULER_PARAMETERS: >-
+      --account=$ACCOUNT
+      --partition=$PARTITION
+      --ntasks=$TASK_COUNT
+      --time=$TIME_LIMIT
+    MAKEFLAGS: --jobs=${TASK_COUNT}
+  before_script:
+    - *load_basic_modules
+
+.init_build_gcc_11_2_0:
+  extends: .init_build
+  before_script:
+    - *load_basic_modules
+    - module load gcc/11.2.0-gcc-11.2.0 openmpi/4.1.2-gcc-11.2.0
+    - export OMPI_MCA_btl_sm_use_knem=0
+    - export OMPI_MCA_btl_vader_single_copy_mechanism=none
+    - ci_FC=mpifort
+    - ci_FCFLAGS='-pipe -O2 -g -march=native'
+    - ci_BUILD_FCFLAGS='-Wall -Wextra -Werror'
+    - ci_CC=mpicc
+    - ci_CFLAGS='-pipe -O2 -g -march=native'
+    - ci_BUILD_CFLAGS='-Wall -Wextra -Werror'
+
+.init_build_intel_2021_5_0:
+  extends: .init_build
+  before_script:
+    - *load_basic_modules
+    - module load intel-oneapi-compilers/2022.0.1-gcc-11.2.0 openmpi/4.1.2-intel-2021.5.0
+    - ci_FC=mpifort
+    - ci_CC=mpicc
+    - ci_CFLAGS='-O2 -march=core-avx2 -g'
+    - ci_FCFLAGS='-O2 -march=core-avx2 -g'
+    - ci_BUILD_FCFLAGS='-diag-enable=all'
+    - ci_BUILD_CFLAGS='-diag-enable=all'
+    - export OMPI_MCA_btl_sm_use_knem=0
+    - export OMPI_MCA_btl_vader_single_copy_mechanism=none
+
+.init_build_oneapi_2023_2_1:
+  extends: .init_build
+  before_script:
+    - *load_basic_modules
+    - module load intel-oneapi-compilers/2023.2.1-gcc-11.2.0 intel-oneapi-mpi/2021.5.0-intel-2021.5.0
+    - export I_MPI_F90=ifx I_MPI_CC=icx
+    - ci_FC=mpiifort
+    - ci_FCFLAGS='-O2 -march=core-avx2 -g'
+    - ci_BUILD_FCFLAGS='-diag-enable=all'
+    - ci_CC=mpiicc
+    - ci_CFLAGS='-O2 -march=core-avx2 -g -fno-math-errno'
+    - ci_BUILD_CFLAGS='-diag-enable=all'
+    - ci_LDFLAGS="-g -shared-intel"
+    - ci_MPI_LAUNCH=$(command -v mpirun)
+
+.init_build_nag_7_1:
+  extends: .init_build
+  before_script:
+    - *load_basic_modules
+    - module load nag/7.1-gcc-11.2.0 openmpi/4.1.2-nag-7.1
+    - export OMPI_MCA_btl_sm_use_knem=0
+    - export OMPI_MCA_btl_vader_single_copy_mechanism=none
+    - ci_FCFLAGS='-C=alias -C=array -C=bits -C=dangling -C=do -C=intovf -C=present -C=pointer -C=recursion -gline -nan -g -fpp -colour=warn:yellow -wmismatch=mpi_pack,mpi_unpack,mpi_bcast,mpi_send,mpi_recv,mpi_allreduce,mpi_isend,mpi_irecv,mpi_allgather,mpi_allgatherv,mpi_gather,mpi_gatherv,mpi_sendrecv,mpi_type_get_extent,xt_slice_c_loc -w=uda -w=alloctr -w=uep -w=x77 -f2008 -Wc,-pipe'
+    - ci_CFLAGS="-O0 -g -pipe"
+    - ci_BUILD_CFLAGS='-Wall -Werror'
+    - ci_CC=mpicc
+    - ci_FC=mpif90
+
+.init_build_nag_7_2:
+  extends: .init_build
+  before_script:
+    - *load_basic_modules
+    - module load nag/7.2-gcc-11.2.0 openmpi/4.1.6-nag-7.2
+    - export OMPI_MCA_btl_sm_use_knem=0
+    - export OMPI_MCA_btl_vader_single_copy_mechanism=none
+    - ci_FCFLAGS="-C=alias -C=array -C=bits -C=dangling -C=do -C=intovf -C=present -C=pointer -C=recursion -gline -nan -g -fpp -colour=warn:yellow -wmismatch=mpi_pack,mpi_unpack,mpi_bcast,mpi_send,mpi_recv,mpi_allreduce,mpi_isend,mpi_irecv,mpi_allgather,mpi_allgatherv,mpi_gather,mpi_gatherv,mpi_sendrecv,mpi_type_get_extent,xt_slice_c_loc -w=uda -w=alloctr -w=uep -w=x77 -f2008 -Wc,-pipe"
+    - ci_CFLAGS="-O0 -g -pipe"
+    - ci_BUILD_CFLAGS='-Wall -Werror'
+    - ci_CC=mpicc
+    - ci_FC=mpif90
+
+.basic_build:
+  script:
+    - scripts/reconfigure
+    - >
+      ./configure
+      ${ci_CC+CC="${ci_CC}"}
+      ${ci_FC+FC="${ci_FC}"}
+      ${ci_FCFLAGS+FCFLAGS="${ci_FCFLAGS}"}
+      ${BUILD_FCFLAGS+BUILD_FCFLAGS="${ci_BUILD_FCFLAGS}"}
+      ${ci_CFLAGS+CFLAGS="${ci_CFLAGS}"}
+      ${ci_BUILD_CFLAGS+BUILD_CFLAGS="${ci_BUILD_CFLAGS}"}
+      --disable-silent-rules
+      MPI_LAUNCH="${ci_MPI_LAUNCH-$(command -v mpirun) --oversubscribe}"
+      ${ci_LDFLAGS+LDFLAGS="$ci_LDFLAGS"}
+      || { status=$? ; gzip config.log ; exit $status ; }
+    - gzip config.log
+# build yaxt and unit tests without running tests
+    - make 2> >(tee make.err)
+# run tests
+    - make -j4 check
+# check git untracked files(any git untracked files would cause failure in ICON buildbot test)
+    - mapfile -t untracked_files < <( $(git ls-files --other --exclude-standard --exclude=config.log.gz --exclude=make.err) )
+    - |
+      [[ ${#untracked_files[@]} -eq 0 ]] || {
+        printf "%s\n" "Failure: Untracked files found" "${untracked_files[@]}"
+        exit 1
+      }
+  artifacts:
+    paths:
+      - make.err
+      - config.log.gz
+      - tests/test-suite.log
+    when: always
+    expire_in: 5min
+
+
+.install_gcovr: &install_gcovr
+  - mkdir $CI_PROJECT_DIR/install_dir
+  - python3 -m venv $CI_PROJECT_DIR/install_dir/python-venv/gcovr
+  - . $CI_PROJECT_DIR/install_dir/python-venv/gcovr/bin/activate
+# 'jinja2<3.1' is required to avoid bug, which was fixed in gcovr 5.1
+# gcovr 5.0 is required because newer version had other issues
+  - pip install 'jinja2<3.1' gcovr==5.0
+
+.check_warning:
+  variables:
+    GIT_STRATEGY: none
+    AWK_SCRIPT: '/warning/ || /WARNING/ || /Warning/'
+  script:
+    - awk "$AWK_SCRIPT" $OUTPUT_FILE > awk.out
+    - "if [ -s awk.out ]; then cat awk.out; exit 1; fi"
+  allow_failure: true
+  tags:
+  - doxygen
+
+gen_cov_data:
+  stage: coverage
+  dependencies: []
+  extends: .init_build_gcc_11_2_0
+  script:
+    - export OMPI_MCA_btl_sm_use_knem=0
+    - export OMPI_MCA_btl_vader_single_copy_mechanism=none
+    - scripts/reconfigure
+    - >
+      ./configure
+      CC=mpicc FC=mpifort
+      FCFLAGS="-pipe -O0 -g -cpp -fprofile-arcs -ftest-coverage"
+      CFLAGS="-pipe -O0 -g -fprofile-arcs -ftest-coverage"
+      BUILD_CFLAGS='-Wall'
+      MPI_LAUNCH="$(command -v mpirun) --oversubscribe"
+    - make -j4 check
+  artifacts:
+    paths:
+      - ./*.gcno
+      - ./*/*.gcno
+      - ./*/*/*.gcno
+      - ./*/*/*/*.gcno
+      - ./*.gcda
+      - ./*/*.gcda
+      - ./*/*/*.gcda
+      - ./*/*/*/*.gcda
+    expire_in: 5min
+
+run_test_gcc_11_2_0:
+  stage: tests
+  extends:
+    - .init_build_gcc_11_2_0
+    - .basic_build
+
+run_test_intel_2021_5_0:
+  stage: tests
+  extends:
+    - .init_build_intel_2021_5_0
+    - .basic_build
+
+run_test_oneapi_2023_2_1:
+  stage: tests
+  extends:
+    - .init_build_oneapi_2023_2_1
+    - .basic_build
+
+run_test_nag_7_1:
+  stage: tests
+  extends:
+    - .init_build_nag_7_1
+    - .basic_build    
+
+run_test_nag_7_2:
+  stage: tests
+  extends:
+    - .init_build_nag_7_2
+    - .basic_build
+
+gen_doxy_html:
+  stage: documentation
+  needs:
+    - job: gen_cov_data
+      artifacts: false
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: always
+    - when: never
+  script:
+  - module load texlive/live2021-gcc-11.2.0
+  - PATH="$PATH:/sw/spack-levante/mambaforge-4.13.0-1-Linux-x86_64-budobm/pkgs/graphviz-5.0.1-h5abf519_0/bin"
+  - make -C doc DOXYGEN=/sw/spack-levante/doxygen-1.9.2-upexqu/bin/doxygen 2> >(tee doxy.err)
+  artifacts:
+    expire_in: 5min
+    paths:
+    - doc/html
+    - doxy.err
+  tags:
+  - levante-fake, hpc, dkrz
+
+gen_cov_rep_html:
+  stage: documentation
+  needs:
+    - gen_cov_data
+  extends: .init_build_gcc_11_2_0
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: always
+    - when: never
+  script:
+    - *install_gcovr
+    - mkdir coverage
+    - cd src
+    - >
+      gcovr
+      --html-details
+      --exclude-unreachable-branches
+      --print-summary
+      -o ../coverage/index.html
+      --root ..
+      --object-directory .
+      -e ../examples
+      -e ../tests
+      -e ../include
+      -e ../perf
+    - cd ..
+    - mkdir coverage_tests
+    - cd tests
+    - >
+      gcovr
+      --html-details
+      --exclude-unreachable-branches
+      -o ../coverage_tests/index.html
+      --root ..
+      --object-directory .
+      -e ../examples
+      -e ../src
+      -e ../include
+      -e ../perf
+  coverage: /^\s*lines:\s*\d+.\d+\%/
+  artifacts:
+    paths:
+      - coverage/
+      - coverage_tests/
+    expire_in: 5min
+
+check_warning_gcc_11_2_0:
+  stage: tests
+  extends: .check_warning
+  variables:
+    OUTPUT_FILE: make.err
+  needs:
+    - run_test_gcc_11_2_0
+
+check_warning_doxy:
+  stage: documentation
+  extends: .check_warning
+  variables:
+    AWK_SCRIPT: '/warning/ && !/doc\/Doxyfile/ && !/doxygen -u/ && !/DOT_GRAPH_MAX_NODES/'
+    OUTPUT_FILE: doxy.err
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: always
+    - when: never
+  needs:
+    - gen_doxy_html
+
+pages:
+  stage: publish
+  variables:
+    GIT_STRATEGY: none
+  needs:
+    - gen_cov_rep_html
+    - gen_doxy_html
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: always
+    - when: never
+  script:
+  - mv doc/html/ public/
+  - mv coverage/ public/coverage
+  - mv coverage_tests public/coverage_tests
+  artifacts:
+    expire_in: 5min
+    paths:
+    - public
+  tags:
+  - doxygen
+
+#generate coverage report for diff view of merge request
+gen_cov_rep_xml:
+  stage: documentation
+  needs:
+    - gen_cov_data
+  extends: .init_build_gcc_11_2_0
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+    - when: never
+  script:
+  script:
+    - *install_gcovr
+    - gcovr --xml-pretty --exclude-unreachable-branches -o coverage.xml --root .
+  coverage: /^\s*lines:\s*\d+.\d+\%/
+  artifacts:
+   expire_in: 1 week
+   reports:
+     coverage_report:
+       coverage_format: cobertura
+       path: coverage.xml

@@ -1,0 +1,300 @@
+# Copyright (c) 2025 The YAC Authors
+#
+# SPDX-License-Identifier: CC-BY-4.0
+
+/**
+ * \page yac_compute_weights_page YAC Weight File Generation Tool
+   \tableofcontents
+
+MPI-parallel tool for computation and write of weights for a provided source
+and target grid configuration to netCDF file.
+
+\section yac_compute_weights_page_usage Usage
+
+\code{.unparsed}
+yac_compute_weights.x
+    -s src_grid_config
+    -t tgt_grid_config
+    -o weight_file
+    [-i interp_stack_config]
+    [-d output_grid_file]
+    [-T]
+
+where:
+    -s       a required argument specifying the source grid configuration
+             (see grid configuration below)
+
+    -t       a required argument specifying the target grid configuration
+             (see grid configuration below)
+
+    -o       a required argument specifying output weight netCDF file name
+
+    -i       an optional argument specifying the interpolation stack
+             configuration. The value is a JSON-formated string that follows
+             the convention for the YAC configuration file
+             (see YAC doxygen documentation on interpolation stack).
+             Default value:
+
+             [
+               {
+                 "conservative":
+                   {
+                     "order": 1,
+                     "enforced_conservation": false,
+                     "partial_coverage": false,
+                     "normalisation": "fracarea"
+                   }
+               },
+               {
+                 "fixed":
+                   {
+                     "user_value": -1
+                   }
+               }
+             ]
+
+    -d       an optional argument specifying netCDF output grid file name,
+             which will contain the source and target grid. This can this for
+             debugging purposes. The generated file can be converted to VTK
+             using the debug_grid2vtk.x tool. Using ParaView, this file can
+             then be visualised.
+
+    -T       an optional argument enabling the writing of run-time performance
+             measurments to standart output
+
+grid_config:
+    icon,FILE,NAME
+             ICON-formatted netCDF grid file
+             where:
+               FILE       grid file name
+               NAME       grid name
+    scrip,FILE,NAME,EDGE_TYPE,MASK_FILE
+             OASIS-SCRIP-formatted netCDF grid file
+             where:
+               FILE       grid file name
+               NAME       grid name
+               EDGE_TYPE  grid edge type
+                 gc: great circle edges
+                 ll: lon/lat circle edges
+               MASK_FILE  mask file name
+    exodus,FILE,NAME,EDGE_TYPE
+             EXODUS-formated NetCDF grid file
+             where:
+               FILE       grid file name
+               NAME       grid name
+               EDGE_TYPE  grid edge type
+                 gc: great circle edges
+                 ll: lon/lat circle edges
+    reg2d,NAME,NLON,NLAT,MIN_LON,MAX_LON,MIN_LAT,MAX_LAT
+             Regular lon/lat grid
+             (edges follow either circles of constant longitude or
+              latitude)
+             where:
+               NAME        grid name
+               NLON        number of grid vertices in longitude direction
+               NLAT        number of grid vertices in latitude direction
+               MIN_LON     minimum longitude in degree
+               MAX_LON     maximum longitude in degree
+               MIN_LAT     minimum latitude in degree
+               MAX_LAT     maximum latitude in degree
+    reg2drot,NAME,NLON,NLAT,MIN_LON,MAX_LON,MIN_LAT,MAX_LAT
+             Regular lon/lat grid with rotated north pole
+             (all edges follow great circles)
+             where:
+               NAME        grid name
+               NLON        number of grid vertices in longitude direction
+               NLAT        number of grid vertices in latitude direction
+               MIN_LON     minimum longitude in degree
+               MAX_LON     maximum longitude in degree
+               MIN_LAT     minimum latitude in degree
+               MAX_LAT     maximum latitude in degree
+               POL_LON: longitude of north in degree
+               POL_LAT: latitude of north in in degree
+\endcode
+
+\section yac_compute_weights_page_examples Examples
+
+Computes the weights for a
+\ref interp_method_conserv "first order conservative interpolation" with a
+\ref interp_method_fixed "fixed user-defined fallback value" from a
+Cubed-Sphere-Mesh provided in a EXODUS-formated netCDF file to a regional
+Regular Gaussian grid using four processes.
+
+\code{.unparsed}
+mpirun -n 4 ./yac_compute_weights.x \
+  -s exodus,CSMesh_129.nc,CSMesh_129,gc \
+  -t reg2d,reg2d,20,10,0,20,80,90 \
+  -o CSMesh_129_to_reg2d.nc \
+  -i "
+[
+  {
+    \"conservative\": {
+      \"order\": 1,
+      \"enforced_conservation\": false,
+      \"partial_coverage\": false,
+      \"normalisation\": \"fracarea\"
+    }
+  },
+  {
+    \"fixed\": {
+      \"user_value\": -1
+    }
+  }
+]"
+\endcode
+
+Computes the weights for
+\ref interp_method_nnn "1-Nearest-Neighbour interpolation" from an
+ICON grid to a NEMO ORCA2 rotated-stretched logically-rectangular grid provided
+via a OASIS-SCRIP-formated netCDF file.
+
+It also writes out a debug grid file. The NEMO grid stored therein is then
+converted into a VTK file and visualised using ParaView.
+
+\code{.unparsed}
+mpirun -n 8 ./yac_compute_weights.x \
+  -s icon,icon_grid_R02B04.nc,iconR02B04 \
+  -t scrip,grids.nc,torc,gc,masks.nc \
+  -o iconR2B04_to_torc.nc \
+  -d debug_grid.nc \
+  -i "[\"nnn\"]"
+
+./debug_grid2vtk.x -n torc -f debug_grid.nc -o torc.vtk
+
+paraview torc.vtk
+\endcode
+
+\section yac_compute_weights_page_parallelisation Information on Parallelisation
+
+The tool is parallelised using MPI and can be run with an arbitrary number
+of processes. In case of very high resolution grids executing this tool on
+multiple processes can reduce run-time and memory consumption per processes.
+
+Grid files are read by multiple processes, if available (see
+\ref io_config_detail).
+
+\section yac_compute_weights_page_stacks Interpolation Stack Examples
+
+This section lists a couple of interpolation stack configurations that were
+tested by [CERFACS](https://cerfacs.fr/en/home/) during their evaluation
+of the [YAC integration into OASIS3-MCT](https://cerfacs.fr/wp-content/uploads/2024/12/TR-CMGC-24-182_yac_in_oasis.pdf).
+
+\subsection yac_compute_weights_page_stacks_avg First-order Non-conservative
+
+-# \ref interp_method_avg with weighting based on barycentric coordinates,
+    which interpolates most target points matching with the source grid
+-# \ref interp_method_ncc interpolates target points falling into edges cases
+   along mask or grid boundaries
+-# \ref interp_method_nnn assignes the closest source point to all remaining
+   target points
+
+\code
+[
+  {
+    "average":
+      {
+        "weighted": "barycentric_coordinate",
+        "partial_coverage": true
+      }
+  },
+  {
+    "ncc":
+      {
+        "weighted": "distance_weighted",
+        "partial_coverage": true
+      }
+  },
+  {
+    "nnn":
+      {
+        "n": 1,
+        "weighted": "arithmetic_average"
+      }
+  }
+]
+\endcode
+
+\subsection yac_compute_weights_page_stacks_hcsbb Second-Order Non-Conservative
+
+-# \ref interp_method_hcsbb interpolates most target points matching with the
+   source grid
+-# \ref interp_method_ncc interpolates target points falling into edges cases
+   along mask or grid boundaries
+-# \ref interp_method_nnn assignes the closest source point to all remaining
+   target points
+
+\code
+[
+  "bernstein_bezier",
+  {
+    "ncc":
+      {
+        "weighted": "distance_weighted",
+        "partial_coverage": true
+      }
+  },
+  {
+    "nnn":
+      {
+        "n": 1,
+        "weighted": "arithmetic_average"
+      }
+  }
+]
+\endcode
+
+\subsection yac_compute_weights_page_stacks_first_conserv First-Order Conservative
+
+-# \ref interp_method_conserv interpolates target cells overlapping with
+   the source grid
+-# \ref interp_method_fixed assignes all remaining target cells a fixed
+   user-defined value (`-1.0` in this case)
+
+\code
+[
+  {
+    "conservative":
+      {
+        "order": 1,
+        "enforced_conservation": false,
+        "partial_coverage": false,
+        "normalisation": "fracarea"
+      }
+  },
+  {
+    "fixed":
+      {
+        "user_value": -1
+      }
+  }
+]
+\endcode
+
+\subsection yac_compute_weights_page_stacks_second_conserv Second-Order Conservative
+
+-# \ref interp_method_conserv interpolates target cells overlapping with
+   the source grid
+-# \ref interp_method_fixed assignes all remaining target cells a fixed
+   user-defined value (`-1.0` in this case)
+
+\code
+[
+  {
+    "conservative":
+      {
+        "order": 2,
+        "enforced_conservation": false,
+        "partial_coverage": false,
+        "normalisation": "fracarea"
+      }
+  },
+  {
+    "fixed":
+      {
+        "user_value": -1
+      }
+  }
+]
+\endcode
+
+*/

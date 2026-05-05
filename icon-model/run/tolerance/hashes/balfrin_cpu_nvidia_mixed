@@ -1,0 +1,13 @@
+--- # ICON probtest tolerance data
+# This file can be parsed using yaml
+# Data is stored in <icon_data_rootFolder>/buildbot_data/ref/<experiment_hash>
+icon_data_rootFolder: /scratch/mch/jenkins/icon/pool/data/ICON
+builder: balfrin_cpu_nvidia_mixed
+# The list below maps each experiment to its current experiment_hash
+"c2sm_clm_r13b03_seaice": c4ff3b3507a2250be27b2a1173e158de5d084cee
+"mch_icon-ch1_small": 20636e4bbcdb3ce4a9cb3dad5c26ef7d2f7440ef
+"mch_icon-ch2_small": 8f12f3cab58341a68e08dd55daec0bd412234d92
+"mch_kenda-ch1_small": c0bb56acc58aa448591563b647e05597123b9173
+"mch_opr_r04b07_sstice_inst": 720c083ec66fbcbb180163e4708d2aa115e7cc1b
+"mch_opr_r19b07_midnight": 98e250d8c949934031348aa2ef1cebaf57bd9187
+"mch_pollen_test": 06e23bf9130a87e8cb3c1f6ea7dea8887dd58bad

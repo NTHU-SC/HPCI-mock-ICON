@@ -1,0 +1,119 @@
+workflow:
+  auto_cancel:
+    on_new_commit: none
+    on_job_failure: none
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+    - if: $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_BRANCH =~ /^cdi-.*-release$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      auto_cancel:
+        on_new_commit: interruptible
+        on_job_failure: all
+    - if: $CI_PIPELINE_SOURCE == "web"
+
+stages:
+  - basic
+  - levante
+  - breeze
+
+.colorized:
+  variables:
+    DEFAULT: '\033[0m'
+    RED: '\033[0;31m'
+
+style:
+  stage: basic
+  extends: .colorized
+  variables:
+    GIT_DEPTH: 1
+    STYLE_PATCH: ${CI_PROJECT_DIR}/style.patch
+  before_script:
+    - apk add black clang-extra-tools git py3-flake8 py3-isort py3-pip python3
+  script:
+    - >-
+      clang-format --style=file -i
+      $(find src app interfaces tests examples
+      \( -name '*.h' -o -name '*.hpp' -o -name '*.c' -o -name '*.cpp' \) -a
+      ! -path 'interfaces/python/cdi_wrapper.cpp' -a
+      ! -path 'interfaces/ruby/cdi_wrapper.cpp' -a
+      ! -path 'src/cdilib.c')
+    - |
+      # Test if patching is necessary
+      test ! -s ${STYLE_PATCH} || {
+        printf "${RED}The source code does not meet the style recuirements. \
+      Please, apply the patch (see artifacts).${DEFAULT}\n"
+
+        printf "${RED}Note that the result of the formatting might depend on \
+          the versions of the formatting tools. In this project, whatever \
+          formatting this CI job produces is the correct one. If it expects \
+          you to re-format parts of the source code that you did not modify, \
+          do so in a separate commit, which must not be squashed, and list the \
+          commit in the '.git-blame-ignore-revs' file.${DEFAULT}\n"
+
+        exit 1
+      }
+  artifacts:
+    paths:
+      - ${STYLE_PATCH}
+    expire_in: 60min
+    expose_as: 'Style Patch'
+    when: on_failure
+  tags:
+    -  alpine
+  interruptible: true
+
+.common:
+  needs: []
+  variables:
+    GIT_DEPTH: 1
+    TASK_COUNT: 8
+    MAKEFLAGS: --jobs=${TASK_COUNT}
+    AM_COLOR_TESTS: always
+  interruptible: true
+
+include:
+  - project: "anw_dienste/ci-templates"
+    file: ".slurm-ci.yml"
+
+.common-levante:
+  stage: levante
+  extends:
+    - .default
+    - .common
+  variables:
+    PARTITION: shared
+    TASK_COUNT: 8
+    TIME_LIMIT: "15:00"
+    SCHEDULER_PARAMETERS: >-
+      --account=ka1125
+      --partition=${PARTITION}
+      --ntasks=${TASK_COUNT}
+      --time=${TIME_LIMIT}
+      --nodes=1
+  before_script:
+    - module purge
+  script:
+    - "${CI_PROJECT_DIR}/.ci/bb/levante-dkrz/${CI_JOB_NAME}"
+
+.common-breeze:
+  stage: breeze
+  extends: .common
+  before_script:
+    - module purge
+  script:
+    - "${CI_PROJECT_DIR}/.ci/bb/breeze-mpim/${CI_JOB_NAME}"
+  tags:
+    - mpim, breeze1-3
+
+test.all.gcc:
+  extends: .common-levante
+
+test.all.intel-classic:
+  extends: .common-levante
+
+test.icon-pio.intel-classic:
+  extends: .common-levante
+
+test.icon.gcc:
+  extends: .common-levante

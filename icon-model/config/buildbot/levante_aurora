@@ -1,0 +1,76 @@
+#!/bin/bash
+
+# ICON
+#
+# ------------------------------------------
+# Copyright (C) 2004-2026, DWD, MPI-M, DKRZ, KIT, ETH, MeteoSwiss
+# Contact information: icon-model.org
+# See AUTHORS.TXT for a list of authors
+# See LICENSES/ for license information
+# SPDX-License-Identifier: BSD-3-Clause
+# ------------------------------------------
+
+set -euo pipefail
+
+ulimit -s unlimited
+
+unset CDPATH
+script_dir=$(cd "$(dirname "$0")"; pwd)
+icon_dir=$(cd "${script_dir}/../.."; pwd)
+
+# These paths are critical to proper loggin by buildbot
+ve_dir="${icon_dir}/build/ve"
+vh_dir="${icon_dir}/build/vh"
+
+makefile='host-vector.mk'
+cat > "${makefile}" <<_EOF
+GNUMAKEFLAGS= --no-print-directory --output-sync=line
+SHELL= /bin/bash
+
+all: ve-all vh-all
+check-icon: ve-check-icon vh-check-icon
+
+%: ve-% vh-%
+
+ve-%: ${ve_dir}/Makefile
+	set -o pipefail; \$(MAKE) -C '\$(<D)' --output-sync=target \$* |& tee -a '\$(<D)/make.log'
+
+vh-%: ${vh_dir}/Makefile
+	set -o pipefail; \$(MAKE) -C '\$(<D)' --output-sync=target \$* |& tee -a '\$(<D)/make.log'
+
+${ve_dir}/Makefile:
+	# configuring in '\$(@D)'
+	mkdir -p '\$(@D)' && cd '\$(@D)' && rm -f make.log && ${icon_dir}/config/dkrz/aurora.VE.nfort-5.0.1_mpi-3.4.0 --disable-openmp --enable-testbed
+
+${vh_dir}/Makefile:
+	# configuring in '\$(@D)'
+	mkdir -p '\$(@D)' && cd '\$(@D)' && rm -f make.log && ${icon_dir}/config/dkrz/aurora.VH.gcc_mpi-3.4.0 --disable-openmp --enable-testbed
+_EOF
+
+if test -n "${BB_NAME-}"; then
+  job_count=22
+else
+  job_count=8
+fi
+
+unset MAKEFLAGS
+makeflags="--jobs=${job_count} V=1"
+
+set -x
+
+cat "${makefile}"
+
+make --makefile="${makefile}" ${makeflags}
+
+if test -n "${BB_NAME-}"; then
+  # Build the tests in parallel:
+  make --makefile="${makefile}" ${makeflags} --keep-going TESTS= check-icon
+  # Run the tests serially:
+  make --makefile="${makefile}" --keep-going ICON_VERBOSE_TESTS=1 ICON_COLOR_TESTS=always check-icon
+fi
+
+rm -f "${makefile}"
+
+# Copy the generated system description because the buildbot-scripting needs it:
+cat ${ve_dir}/run/set-up.info
+cp -v ${ve_dir}/run/set-up.info ${icon_dir}/run

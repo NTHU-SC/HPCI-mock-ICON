@@ -1,0 +1,29 @@
+The \ref yac_lib_core "YAC core library" contains all functionallity required
+for generating weights and doing basic exchanges using them.
+
+It has a low-level C and \ref yac_core.F90 "Fortran" interface. The C header
+file (yac_core.h) is generated automatically during the building process.
+
+\section add_info Additional information
+
+\subsection interpolation Interpolation
+
+YAC provides extensive interpolation capabilities. A description can be found
+\ref interp_main "here".
+
+\subsection io_config_detail_ Configuration of parallel IO in YAC
+
+YAC accesses weight and grid files in parallel. The user can provide hints to
+YAC in form of \ref io_config_detail "multiple environment variables", which
+are evalutated during runtime.
+
+\subsection io_clipping Polygon clipping in YAC
+
+Some information on the implementation of polygon clipping algorithm in YAC
+can be found \ref clipping "here".
+
+\subsection sphere_part_docu_ Sphere Partitioning Algorithm
+
+The Sphere Partitioning Algorithm is used in YAC for efficiently accessing data
+defined on the surface of a sphere. A basic description can be found
+\ref sphere_part_docu "here".

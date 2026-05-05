@@ -1,0 +1,53 @@
+# Copyright (c) 2024 The YAC Authors
+#
+# SPDX-License-Identifier: CC-BY-4.0
+
+predef:
+  - &comp_1
+    component: comp_1
+    grid: grid_1
+  - &comp_2
+    component: comp_2
+    grid: grid_2
+  - &comp_3
+    component: comp_3
+    grid: grid_3
+  - &time_config
+    coupling_period: 60
+    time_reduction: accumulate
+    src_lag: 60
+    tgt_lag: 60
+    interpolation:
+      - fixed:
+          user_value: -1.0
+
+start_date: 2008-03-09T16:05:07
+end_date: 2008-03-10T16:05:07
+timestep_unit: second
+debug:
+  missing_definition_is_fatal: false
+coupling:
+  - source: *comp_1
+    target: *comp_2
+    field: field_1
+    <<: *time_config
+  - source: *comp_2
+    target: *comp_3
+    field: field_2
+    <<: *time_config
+  - source: *comp_3
+    target: *comp_1
+    field: field_3
+    <<: *time_config
+  - source: *comp_1
+    target: *comp_2
+    field: field_4
+    <<: *time_config
+  - source: *comp_2
+    target: *comp_3
+    field: field_5
+    <<: *time_config
+  - source: *comp_3
+    target: *comp_1
+    field: field_6
+    <<: *time_config

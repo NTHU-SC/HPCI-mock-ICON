@@ -1,0 +1,41 @@
+The \ref yac_lib_mci "Model Coupling Interface (MCI) library" is a library built
+on top of the \ref yac_lib_core "YAC core library" and provides additional
+capabilities that improve usability for Earth system model components.
+
+It has a high-level \ref yac.h "C", \ref yac_module.F90 "Fortran", and
+\ref yac.pyx "Python" interface.
+
+\section interface User interface
+
+- \ref overview "Basic introduction"
+- \ref usage "Detailed user guide"
+- \ref reference "Interface reference"
+- \ref yaml_file "Configuration files"
+
+\section python The Python bindings
+
+Information on how to build and use the Python bindings for the
+YAC MCI library can be found \ref pythonbindings "here".
+
+\section add_info Additional information
+
+\subsection init_yac_detail_ Initialising YAC in complex setups
+
+In complex Earth system model configurations, initialization of MPI can be a
+difficult task, especially if a setup uses more than one coupling library or
+uses additional IO server components. How to handle these cases with YAC
+is discussed in detail \ref init_yac_detail "here".
+
+\subsection instances_ YAC instances
+
+Within a coupled configuration, YAC supports the usage of multiple independent
+YAC instances. This concept and its usage is explained \ref yinstance "here".
+
+\subsection page_raw_exchange_ Raw data exchange
+
+In case target components want to receive unaltered source data and apply
+weights computed by YAC on their own, the
+\ref page_raw_exchange "raw data exchange feature" can be used. This can be
+useful in case functionallity similar to an exchange grid is required or a
+component wants to do stochastic coupling, which is not directly supported by
+YAC.

@@ -1,0 +1,9 @@
+[run]
+source =
+    engine/
+    visualize/
+    probtest.py
+    util/
+omit =
+    probtest.py
+    tests/*

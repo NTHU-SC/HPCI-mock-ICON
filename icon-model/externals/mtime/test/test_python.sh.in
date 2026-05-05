@@ -1,0 +1,146 @@
+#!@SHELL@
+# Copyright (c) 2013-2024 MPI-M, Luis Kornblueh, Rahul Sinha and
+# DWD, Florian Prill. All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+#
+
+# -*- python -*-
+
+""":"
+set -e
+
+@ENABLE_PYTHON_FALSE@exit 77
+
+PYTHONPATH="@abs_top_builddir@/python:${PYTHONPATH+":${PYTHONPATH}"}"
+export PYTHONPATH
+PYTHONDONTWRITEBYTECODE=1
+export PYTHONDONTWRITEBYTECODE
+
+exec @PYTHON@ "$0"
+":"""
+import mtime
+
+# Setup, testing initialization and time delta arithmetics
+initial_date = mtime.DateTime("1850-01-23T12:34:56.789")
+start_date = initial_date + mtime.TimeDelta("P1Y")
+timestep = mtime.TimeDelta("PT15M")
+next_date = start_date + mtime.TimeDelta("P1Y")
+after_date = next_date + mtime.TimeDelta("P1Y")
+
+print("-" * 80)
+tests = ""
+
+# Test string conversion and show setup values
+tests += """
+str(initial_date) == "1850-01-23T12:34:56.789"
+str(start_date) == "1851-01-23T12:34:56.789"
+str(timestep) == "PT15M"
+str(next_date) == "1852-01-23T12:34:56.789"
+str(after_date) == "1853-01-23T12:34:56.789"
+"""
+
+# Test before/after tests on datetime objects
+tests += """
+start_date == start_date
+start_date > initial_date
+not (start_date == initial_date)
+not (start_date < initial_date)
+"""
+
+# Test division by delta
+tests += """
+(start_date, initial_date)//timestep == 35040
+(after_date, next_date)//timestep == 35136
+"""
+
+# Test attribute selection, also for date and time only parts
+tests += """
+str(start_date.date) == "1851-01-23"
+str(start_date.time) == "12:34:56.789"
+start_date.year == 1851
+start_date.month == 1
+start_date.day == 23
+start_date.hour == 12
+start_date.minute == 34
+start_date.second == 56
+start_date.ms == 789
+start_date.date.year == 1851
+start_date.date.month == 1
+start_date.date.day == 23
+start_date.time.hour == 12
+start_date.time.minute == 34
+start_date.time.second == 56
+start_date.time.ms == 789
+timestep.sign == "+"
+timestep.year == 0
+timestep.month == 0
+timestep.day == 0
+timestep.hour == 0
+timestep.minute == 15
+timestep.second == 0
+timestep.ms == 0
+"""
+
+test_result = False
+for test in filter(None, tests.split("\n")):
+    test_result = eval(test)
+    print("{0}: {1}".format(test, test_result))
+    assert test_result
+
+# Test re-initializing of calendar, showing Feb 28th and successing days
+
+# Use default calendar (Proleptic Gregorian)
+print("-" * 80)
+start_day = mtime.DateTime("1852-02-28")
+one_day = mtime.TimeDelta("P1D")
+print(mtime.calendarToString())
+print(start_day)
+
+next_day = start_day + one_day
+print(next_day)
+assert next_day == mtime.DateTime("1852-02-29")
+
+next_day += one_day
+print(next_day)
+assert next_day == mtime.DateTime("1852-03-01")
+
+next_day += mtime.TimeDelta("P1D")
+print(next_day)
+assert next_day == mtime.DateTime("1852-03-02")
+
+# Use 365 day calendar (no Feb 29th)
+print("-" * 80)
+mtime.setCalendar(mtime.CALENDAR_TYPE.year_of_365_days)
+print(mtime.calendarToString())
+print(start_day)
+
+next_day = start_day + mtime.TimeDelta("P1D")
+print(next_day)
+assert next_day == mtime.DateTime("1852-03-01")
+
+next_day += mtime.TimeDelta("P1D")
+print(next_day)
+assert next_day == mtime.DateTime("1852-03-02")
+
+next_day += mtime.TimeDelta("P1D")
+print(next_day)
+assert next_day == mtime.DateTime("1852-03-03")
+
+# Use 360 day calendar (twelve 30-day months)
+print("-" * 80)
+mtime.setCalendar(mtime.CALENDAR_TYPE.year_of_360_days)
+print(mtime.calendarToString())
+print(start_day)
+
+next_day = start_day + mtime.TimeDelta("P1D")
+print(next_day)
+assert next_day == mtime.DateTime("1852-02-29")
+
+next_day += mtime.TimeDelta("P1D")
+print(next_day)
+assert next_day == mtime.DateTime("1852-02-30")
+
+next_day += mtime.TimeDelta("P1D")
+print(next_day)
+assert next_day == mtime.DateTime("1852-03-01")
